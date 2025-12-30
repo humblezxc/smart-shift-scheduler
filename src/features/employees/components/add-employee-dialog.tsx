@@ -119,6 +119,7 @@ export function AddEmployeeDialog() {
                                             <SelectItem value="manager">Manager</SelectItem>
                                             <SelectItem value="cashier">Cashier</SelectItem>
                                             <SelectItem value="student">Student</SelectItem>
+                                            <SelectItem value="owner">Owner</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />

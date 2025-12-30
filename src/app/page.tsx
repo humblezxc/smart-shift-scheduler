@@ -4,6 +4,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { EmployeeList } from "@/features/employees/components/employee-list";
 import { AddEmployeeDialog } from "@/features/employees/components/add-employee-dialog";
 import { ScheduleGrid } from "@/features/scheduler/components/schedule-grid";
+import { GenerateButton } from "@/features/scheduler/components/generate-button";
 
 export default function Dashboard() {
   return (
@@ -12,7 +13,7 @@ export default function Dashboard() {
           <h1 className="text-xl font-bold tracking-tight">🏪 Smart Shift Scheduler</h1>
           <div className="flex gap-4">
             <AddEmployeeDialog />
-            <Button>Generate Schedule (AI)</Button>
+            <GenerateButton />
           </div>
         </header>
 
