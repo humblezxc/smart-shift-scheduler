@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
-import {EmployeeList} from "@/features/employees/components/employee-list";
-import {AddEmployeeDialog} from "@/features/employees/components/add-employee-dialog";
+import { EmployeeList } from "@/features/employees/components/employee-list";
+import { AddEmployeeDialog } from "@/features/employees/components/add-employee-dialog";
+import { ScheduleGrid } from "@/features/scheduler/components/schedule-grid";
 
 export default function Dashboard() {
   return (
@@ -16,14 +17,13 @@ export default function Dashboard() {
         </header>
 
         <main className="flex-1 p-6 grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6">
-
           <aside className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Select Week</CardTitle>
               </CardHeader>
               <CardContent>
-                <Calendar mode="single" className="rounded-md border" />
+                <Calendar mode="single" className="rounded-md border mx-auto" />
               </CardContent>
             </Card>
 
@@ -36,24 +36,26 @@ export default function Dashboard() {
                 <p>Estimated Cost: 0 PLN</p>
               </CardContent>
             </Card>
-          </aside>
 
-          <section className="space-y-6">
-            <Card className="h-full min-h-[500px]">
-              <CardHeader>
-                <CardTitle>Weekly Schedule</CardTitle>
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle>Staff</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-center h-64 text-gray-400 border-2 border-dashed rounded-lg">
-                  No shifts generated yet. Click "Generate" to start.
+              <CardContent className="p-0">
+                <div className="scale-90 origin-top-left w-[110%]">
+                  <EmployeeList />
                 </div>
               </CardContent>
             </Card>
-          </section>
+          </aside>
 
-          <section className="col-span-1 md:col-span-2 mt-6">
-            <h2 className="text-lg font-semibold mb-4">Staff Overview</h2>
-            <EmployeeList />
+          <section className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold">Weekly Schedule</h2>
+              <div className="text-sm text-gray-500">Current Week</div>
+            </div>
+
+            <ScheduleGrid />
           </section>
         </main>
       </div>

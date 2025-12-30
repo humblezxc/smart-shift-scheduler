@@ -6,3 +6,12 @@ export interface Employee {
     max_hours_per_week: number;
     hourly_rate: number;
 }
+
+export interface Shift {
+    id: number;
+    employee_id: number;
+    start_time: string;
+    end_time: string;
+
+    employee?: Employee;
+}
