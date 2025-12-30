@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
+import {EmployeeList} from "@/features/employees/components/employee-list";
 
 export default function Dashboard() {
   return (
@@ -47,6 +48,11 @@ export default function Dashboard() {
                 </div>
               </CardContent>
             </Card>
+          </section>
+
+          <section className="col-span-1 md:col-span-2 mt-6">
+            <h2 className="text-lg font-semibold mb-4">Staff Overview</h2>
+            <EmployeeList />
           </section>
         </main>
       </div>
