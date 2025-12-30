@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import {EmployeeList} from "@/features/employees/components/employee-list";
+import {AddEmployeeDialog} from "@/features/employees/components/add-employee-dialog";
 
 export default function Dashboard() {
   return (
@@ -9,7 +10,7 @@ export default function Dashboard() {
         <header className="bg-white border-b h-16 flex items-center px-6 justify-between">
           <h1 className="text-xl font-bold tracking-tight">🏪 Smart Shift Scheduler</h1>
           <div className="flex gap-4">
-            <Button variant="outline">Employees</Button>
+            <AddEmployeeDialog />
             <Button>Generate Schedule (AI)</Button>
           </div>
         </header>
