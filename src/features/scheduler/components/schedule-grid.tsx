@@ -4,9 +4,12 @@ import { Shift, Employee } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { ScheduleGridClient } from "./schedule-grid-client";
 
-export async function ScheduleGrid() {
-    const today = new Date();
-    const { start, end } = getWeekRange(today);
+interface Props {
+    date: Date;
+}
+
+export async function ScheduleGrid({ date }: Props) {
+    const { start, end } = getWeekRange(date);
     const days = getWeekDays(start);
 
     const [shiftsData, employeesData] = await Promise.all([

@@ -1,12 +1,18 @@
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar } from "@/components/ui/calendar";
 import { EmployeeList } from "@/features/employees/components/employee-list";
 import { AddEmployeeDialog } from "@/features/employees/components/add-employee-dialog";
 import { ScheduleGrid } from "@/features/scheduler/components/schedule-grid";
 import { GenerateButton } from "@/features/scheduler/components/generate-button";
+import { WeekNavigation } from "@/features/scheduler/components/week-navigation";
+import { CalendarPicker } from "@/features/scheduler/components/calendar-picker";
 
-export default function Dashboard() {
+export default async function Dashboard({searchParams,}: { searchParams: Promise<{ date?: string }>; }) {
+  const params = await searchParams;
+
+  const currentDate = params.date
+      ? new Date(params.date)
+      : new Date();
+
   return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <header className="bg-white border-b h-16 flex items-center px-6 justify-between">
@@ -24,7 +30,7 @@ export default function Dashboard() {
                 <CardTitle>Select Week</CardTitle>
               </CardHeader>
               <CardContent>
-                <Calendar mode="single" className="rounded-md border mx-auto" />
+                <CalendarPicker />
               </CardContent>
             </Card>
 
@@ -51,12 +57,8 @@ export default function Dashboard() {
           </aside>
 
           <section className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold">Weekly Schedule</h2>
-              <div className="text-sm text-gray-500">Current Week</div>
-            </div>
-
-            <ScheduleGrid />
+            <WeekNavigation />
+            <ScheduleGrid date={currentDate} />
           </section>
         </main>
       </div>

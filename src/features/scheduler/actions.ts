@@ -1,10 +1,9 @@
 "use server";
 
 import { supabase } from "@/lib/supabase";
-import { startOfDay, endOfDay } from "date-fns";
 import { shiftSchema, ShiftFormValues } from "./schemas";
 import { revalidatePath } from "next/cache";
-import { addDays, startOfWeek, isSunday, format } from "date-fns";
+import { addDays, startOfWeek, isSunday, format, startOfDay, endOfDay, isBefore } from "date-fns";
 import { WEEK_STARTS_ON } from "@/lib/date-utils";
 
 export async function getShiftsForWeek(startOfWeek: Date, endOfWeek: Date) {
@@ -70,13 +69,15 @@ type ShiftSlot = {
     requiresLeadership?: boolean;
 };
 
-export async function generateSchedule() {
+export async function generateSchedule(dateStr?: string) {
     const { data: employees } = await supabase.from("employees").select("*");
     if (!employees || employees.length === 0) return { error: "No employees found" };
 
-    const today = new Date();
-    const startOfCurrentWeek = startOfWeek(today, { weekStartsOn: WEEK_STARTS_ON });
+    const referenceDate = dateStr ? new Date(dateStr) : new Date();
+    const startOfCurrentWeek = startOfWeek(referenceDate, { weekStartsOn: WEEK_STARTS_ON });
     const endOfCurrentWeek = addDays(startOfCurrentWeek, 6);
+
+    const todayAbsolute = startOfDay(new Date());
 
     const { data: existingShifts } = await supabase
         .from("shifts")
@@ -100,6 +101,11 @@ export async function generateSchedule() {
 
     for (let i = 0; i < 7; i++) {
         const currentDate = addDays(startOfCurrentWeek, i);
+
+        if (isBefore(currentDate, todayAbsolute)) {
+            continue;
+        }
+
         const isSun = isSunday(currentDate);
         let slots: ShiftSlot[] = [];
 
@@ -124,9 +130,17 @@ export async function generateSchedule() {
             const [eh, em] = slot.end.split(":").map(Number);
             endDateTime.setHours(eh, em, 0, 0);
 
-            const slotStartIso = startDateTime.toISOString();
-            const alreadyExistsInDb = existingShifts?.some(s => s.start_time === slotStartIso);
-            const alreadyGenerated = newShiftsToInsert.some(s => s.start_time === slotStartIso);
+            const slotStartTime = startDateTime.getTime();
+
+            const alreadyExistsInDb = existingShifts?.some(s => {
+                const shiftTime = new Date(s.start_time).getTime();
+                return Math.abs(shiftTime - slotStartTime) < 60000;
+            });
+
+            const alreadyGenerated = newShiftsToInsert.some(s => {
+                const shiftTime = new Date(s.start_time).getTime();
+                return Math.abs(shiftTime - slotStartTime) < 60000;
+            });
 
             if (alreadyExistsInDb || alreadyGenerated) {
                 continue;
@@ -152,7 +166,7 @@ export async function generateSchedule() {
             if (candidate) {
                 newShiftsToInsert.push({
                     employee_id: candidate.id,
-                    start_time: slotStartIso,
+                    start_time: startDateTime.toISOString(),
                     end_time: endDateTime.toISOString(),
                 });
                 hoursUsed[candidate.id] += slot.duration;
