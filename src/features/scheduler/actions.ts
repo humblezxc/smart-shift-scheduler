@@ -168,3 +168,53 @@ export async function generateSchedule() {
     revalidatePath("/");
     return { success: true, count: newShiftsToInsert.length };
 }
+
+export async function deleteShift(id: number) {
+    const { error } = await supabase
+        .from("shifts")
+        .delete()
+        .eq("id", id);
+
+    if (error) {
+        console.error("Delete Error:", error);
+        return { error: "Could not delete shift" };
+    }
+
+    revalidatePath("/");
+    return { success: true };
+}
+
+export async function updateShift(id: number, data: ShiftFormValues) {
+    const result = shiftSchema.safeParse(data);
+
+    if (!result.success) {
+        return { error: "Validation failed" };
+    }
+
+    const { date, start_time, end_time, employee_id } = result.data;
+
+    const startDateTime = new Date(date);
+    const [sh, sm] = start_time.split(":").map(Number);
+    startDateTime.setHours(sh, sm, 0, 0);
+
+    const endDateTime = new Date(date);
+    const [eh, em] = end_time.split(":").map(Number);
+    endDateTime.setHours(eh, em, 0, 0);
+
+    const { error } = await supabase
+        .from("shifts")
+        .update({
+            employee_id,
+            start_time: startDateTime.toISOString(),
+            end_time: endDateTime.toISOString(),
+        })
+        .eq("id", id);
+
+    if (error) {
+        console.error("Update Error:", error);
+        return { error: "Could not update shift" };
+    }
+
+    revalidatePath("/");
+    return { success: true };
+}
