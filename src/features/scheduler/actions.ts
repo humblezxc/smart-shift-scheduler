@@ -232,3 +232,43 @@ export async function updateShift(id: number, data: ShiftFormValues) {
     revalidatePath("/");
     return { success: true };
 }
+
+export async function getWeekStats(start: Date, end: Date) {
+    const { data: shifts, error } = await supabase
+        .from("shifts")
+        .select(`
+      start_time,
+      end_time,
+      employee:employees (
+        hourly_rate
+      )
+    `)
+        .gte("start_time", start.toISOString())
+        .lte("start_time", end.toISOString());
+
+    if (error || !shifts) {
+        return { totalShifts: 0, totalHours: 0, totalCost: 0 };
+    }
+
+    let totalHours = 0;
+    let totalCost = 0;
+
+    shifts.forEach((shift) => {
+        const start = new Date(shift.start_time).getTime();
+        const end = new Date(shift.end_time).getTime();
+
+        const durationHours = (end - start) / (1000 * 60 * 60);
+
+        // @ts-ignore
+        const rate = shift.employee?.hourly_rate || 0;
+
+        totalHours += durationHours;
+        totalCost += durationHours * rate;
+    });
+
+    return {
+        totalShifts: shifts.length,
+        totalHours: Math.round(totalHours * 10) / 10,
+        totalCost: Math.round(totalCost),
+    };
+}

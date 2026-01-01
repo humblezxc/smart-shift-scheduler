@@ -5,13 +5,19 @@ import { ScheduleGrid } from "@/features/scheduler/components/schedule-grid";
 import { GenerateButton } from "@/features/scheduler/components/generate-button";
 import { WeekNavigation } from "@/features/scheduler/components/week-navigation";
 import { CalendarPicker } from "@/features/scheduler/components/calendar-picker";
-
+import { getWeekRange } from "@/lib/date-utils";
+import { getWeekStats } from "@/features/scheduler/actions";
+import { StatsCard } from "@/features/scheduler/components/stats-card";
 export default async function Dashboard({searchParams,}: { searchParams: Promise<{ date?: string }>; }) {
   const params = await searchParams;
 
   const currentDate = params.date
       ? new Date(params.date)
       : new Date();
+
+  const { start, end } = getWeekRange(currentDate);
+
+  const stats = await getWeekStats(start, end);
 
   return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -34,15 +40,7 @@ export default async function Dashboard({searchParams,}: { searchParams: Promise
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Stats</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-gray-500">
-                <p>Total Shifts: 0</p>
-                <p>Estimated Cost: 0 PLN</p>
-              </CardContent>
-            </Card>
+            <StatsCard stats={stats} />
 
             <Card className="overflow-hidden">
               <CardHeader className="pb-2">
