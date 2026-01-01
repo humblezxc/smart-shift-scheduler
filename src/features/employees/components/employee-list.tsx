@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Employee } from "@/types";
+import { Badge } from "@/components/ui/badge";
 import {
     Table,
     TableBody,
@@ -41,6 +42,13 @@ export function EmployeeList() {
         setTimeout(() => setCopiedId(null), 2000);
     };
 
+    const roleBadgeColors: Record<string, string> = {
+        owner: "bg-purple-100 text-purple-700 hover:bg-purple-100",
+        manager: "bg-amber-100 text-amber-700 hover:bg-amber-100",
+        cashier: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+        student: "bg-emerald-100 text-emerald-700 hover:bg-emerald-100",
+    };
+
     return (
         <div className="rounded-md border">
             <Table>
@@ -55,9 +63,14 @@ export function EmployeeList() {
                     {employees.map((employee) => (
                         <TableRow key={employee.id}>
                             <TableCell className="font-medium">
+
                                 {employee.first_name} {employee.last_name}
                             </TableCell>
-                            <TableCell>{employee.role}</TableCell>
+                            <TableCell>
+                                <Badge variant="outline" className={`border-0 ${roleBadgeColors[employee.role] || "bg-gray-100 text-gray-700"}`}>
+                                    {employee.role}
+                                </Badge>
+                            </TableCell>
                             <TableCell className="text-right">
                                 <Button
                                     variant="ghost"

@@ -18,6 +18,12 @@ export function ScheduleGridClient({ initialShifts, employees, days }: Props) {
 
     return (
         <div className="border rounded-lg bg-white overflow-hidden">
+            <div className="flex gap-4 px-4 py-2 text-xs text-gray-500 bg-gray-50/50 border-b">
+                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-purple-200"></div> Owner</div>
+                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-amber-200"></div> Manager</div>
+                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-blue-200"></div> Cashier</div>
+                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-emerald-200"></div> Student</div>
+            </div>
             <div className="grid grid-cols-7 border-b bg-gray-50">
                 {days.map((day) => (
                     <div key={day.toString()} className="p-3 text-center border-r last:border-r-0">
