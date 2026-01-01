@@ -13,3 +13,11 @@ export const shiftSchema = z.object({
 });
 
 export type ShiftFormValues = z.infer<typeof shiftSchema>;
+
+export const timeOffSchema = z.object({
+    employee_id: z.number(),
+    date: z.date(),
+    reason: z.string().optional(),
+});
+
+export type TimeOffRequestValues = z.infer<typeof timeOffSchema>;

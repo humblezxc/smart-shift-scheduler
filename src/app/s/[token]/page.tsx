@@ -5,6 +5,8 @@ import { CalendarPlus, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { RequestTimeOff } from "@/features/employees/components/request-time-off";
+import { RejectShiftButton } from "@/features/employees/components/reject-shift-button";
 
 function getGoogleCalendarLink(shift: any, employeeName: string) {
     const start = new Date(shift.start_time).toISOString().replace(/-|:|\.\d\d\d/g, "");
@@ -18,7 +20,7 @@ function getGoogleCalendarLink(shift: any, employeeName: string) {
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}&location=${location}`;
 }
 
-export default async function EmployeeSchedulePage({params,}: { params: Promise<{ token: string }>; }) {
+export default async function EmployeeSchedulePage({ params, }: { params: Promise<{ token: string }>; }) {
     const { token } = await params;
 
     const { data: employee } = await supabase
@@ -53,6 +55,9 @@ export default async function EmployeeSchedulePage({params,}: { params: Promise<
                     </h1>
                     <p className="text-gray-500">Here are your upcoming shifts</p>
                 </div>
+                <div className="flex justify-center pb-2">
+                    <RequestTimeOff employeeId={employee.id} />
+                </div>
                 <div className="space-y-4">
                     {!shifts || shifts.length === 0 ? (
                         <Card>
@@ -81,20 +86,26 @@ export default async function EmployeeSchedulePage({params,}: { params: Promise<
                                             </div>
                                             <Badge variant="secondary">{duration}h</Badge>
                                         </div>
-                                        <Button
-                                            variant="outline"
-                                            className="w-full text-blue-600 border-blue-200 hover:bg-blue-50 mt-2"
-                                            asChild
-                                        >
-                                            <a
-                                                href={getGoogleCalendarLink(shift, employee.first_name)}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
+                                        <div className="flex gap-2 mt-2">
+                                            <Button
+                                                variant="outline"
+                                                className="w-full text-blue-600 border-blue-200 hover:bg-blue-50 mt-2"
+                                                asChild
                                             >
-                                                <CalendarPlus className="w-4 h-4 mr-2" />
-                                                Add to Google Calendar
-                                            </a>
-                                        </Button>
+                                                <a
+                                                    href={getGoogleCalendarLink(shift, employee.first_name)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    <CalendarPlus className="w-4 h-4 mr-2" />
+                                                    Add to Google Calendar
+                                                </a>
+                                            </Button>
+                                            <RejectShiftButton
+                                                employeeId={employee.id}
+                                                date={startDate}
+                                            />
+                                        </div>
                                     </CardContent>
                                 </Card>
                             );

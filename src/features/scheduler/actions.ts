@@ -1,7 +1,7 @@
 "use server";
 
 import { supabase } from "@/lib/supabase";
-import { shiftSchema, ShiftFormValues } from "./schemas";
+import { shiftSchema, ShiftFormValues, timeOffSchema } from "./schemas";
 import { revalidatePath } from "next/cache";
 import { addDays, startOfWeek, isSunday, format, startOfDay, endOfDay, isBefore } from "date-fns";
 import { WEEK_STARTS_ON } from "@/lib/date-utils";
@@ -79,6 +79,12 @@ export async function generateSchedule(dateStr?: string) {
 
     const todayAbsolute = startOfDay(new Date());
 
+    const { data: timeOffs } = await supabase
+        .from("time_off_requests")
+        .select("*")
+        .gte("date", startOfCurrentWeek.toISOString())
+        .lte("date", endOfCurrentWeek.toISOString());
+
     const { data: existingShifts } = await supabase
         .from("shifts")
         .select("*")
@@ -153,6 +159,12 @@ export async function generateSchedule(dateStr?: string) {
                 if ((hoursUsed[emp.id] + slot.duration) > emp.max_hours_per_week) return false;
 
                 const dateStr = format(currentDate, "yyyy-MM-dd");
+
+                const hasTimeOff = timeOffs?.some(t =>
+                    t.employee_id === emp.id && t.date === dateStr
+                );
+                if (hasTimeOff) return false;
+
                 const worksInDbToday = existingShifts?.some(s =>
                     s.employee_id === emp.id && s.start_time.startsWith(dateStr)
                 );
@@ -271,4 +283,34 @@ export async function getWeekStats(start: Date, end: Date) {
         totalHours: Math.round(totalHours * 10) / 10,
         totalCost: Math.round(totalCost),
     };
+}
+
+
+export async function createTimeOffRequest(data: z.infer<typeof timeOffSchema>) {
+    const { employee_id, date, reason } = data;
+
+    const { error } = await supabase.from("time_off_requests").insert({
+        employee_id,
+        date: format(date, "yyyy-MM-dd"),
+        reason,
+    });
+
+    if (error) {
+        console.error("Time Off Error:", error);
+        return { error: "Failed to request time off" };
+    }
+
+    revalidatePath("/");
+    return { success: true };
+}
+
+export async function deleteTimeOffRequest(id: number) {
+    const { error } = await supabase
+        .from("time_off_requests")
+        .delete()
+        .eq("id", id);
+
+    if (error) return { error: "Failed" };
+    revalidatePath("/");
+    return { success: true };
 }

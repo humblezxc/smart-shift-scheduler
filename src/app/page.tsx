@@ -8,6 +8,7 @@ import { CalendarPicker } from "@/features/scheduler/components/calendar-picker"
 import { getWeekRange } from "@/lib/date-utils";
 import { getWeekStats } from "@/features/scheduler/actions";
 import { StatsCard } from "@/features/scheduler/components/stats-card";
+import { TimeOffList } from "@/features/scheduler/components/time-off-list";
 export default async function Dashboard({searchParams,}: { searchParams: Promise<{ date?: string }>; }) {
   const params = await searchParams;
 
@@ -39,9 +40,10 @@ export default async function Dashboard({searchParams,}: { searchParams: Promise
                 <CalendarPicker />
               </CardContent>
             </Card>
-
             <StatsCard stats={stats} />
-
+            <div className="h-[350px]">
+              <TimeOffList />
+            </div>
             <Card className="overflow-hidden">
               <CardHeader className="pb-2">
                 <CardTitle>Staff</CardTitle>
