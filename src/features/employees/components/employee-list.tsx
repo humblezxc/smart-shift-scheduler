@@ -1,4 +1,8 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { Employee } from "@/types";
 import {
     Table,
     TableBody,
@@ -7,18 +11,35 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Link2, Check } from "lucide-react";
+import { toast } from "sonner";
 
-export async function EmployeeList() {
+export function EmployeeList() {
+    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [copiedId, setCopiedId] = useState<number | null>(null);
 
-    const { data: employees, error } = await supabase
-        .from('employees')
-        .select('*')
-        .order('id');
+    useEffect(() => {
+        fetchEmployees();
+    }, []);
 
-    if (error) {
-        return <div className="text-red-500">Error loading employees</div>;
+    async function fetchEmployees() {
+        const { data } = await supabase.from("employees").select("*").order("first_name");
+        if (data) {
+            // @ts-ignore
+            setEmployees(data);
+        }
     }
+
+    const copyLink = (token: string, id: number) => {
+        const url = `${window.location.origin}/s/${token}`;
+
+        navigator.clipboard.writeText(url);
+        toast.success("Personal link copied to clipboard!");
+
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+    };
 
     return (
         <div className="rounded-md border">
@@ -27,23 +48,33 @@ export async function EmployeeList() {
                     <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Role</TableHead>
-                        <TableHead>Max Hours</TableHead>
-                        <TableHead className="text-right">Rate (PLN)</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {employees?.map((employee) => (
+                    {employees.map((employee) => (
                         <TableRow key={employee.id}>
                             <TableCell className="font-medium">
                                 {employee.first_name} {employee.last_name}
                             </TableCell>
-                            <TableCell>
-                                <Badge variant={employee.role === 'manager' ? 'default' : 'secondary'}>
-                                    {employee.role}
-                                </Badge>
+                            <TableCell>{employee.role}</TableCell>
+                            <TableCell className="text-right">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() =>
+                                        // @ts-ignore
+                                        copyLink(employee.share_token, employee.id)
+                                    }
+                                    title="Copy Schedule Link"
+                                >
+                                    {copiedId === employee.id ? (
+                                        <Check className="h-4 w-4 text-green-600" />
+                                    ) : (
+                                        <Link2 className="h-4 w-4 text-gray-500" />
+                                    )}
+                                </Button>
                             </TableCell>
-                            <TableCell>{employee.max_hours_per_week}h</TableCell>
-                            <TableCell className="text-right">{employee.hourly_rate}</TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
