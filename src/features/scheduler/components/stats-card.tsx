@@ -1,5 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Coins, Clock, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Coins, Clock, Users, ArrowUpRight } from "lucide-react";
+import Link from "next/link";
 
 interface StatsProps {
     stats: {
@@ -12,8 +14,13 @@ interface StatsProps {
 export function StatsCard({ stats }: StatsProps) {
     return (
         <Card>
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className="text-lg">Weekly Stats</CardTitle>
+                <Button variant="ghost" size="icon" asChild className="h-6 w-6">
+                    <Link href="/stats">
+                        <ArrowUpRight className="h-4 w-4" />
+                    </Link>
+                </Button>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">

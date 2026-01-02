@@ -3,7 +3,7 @@
 import { supabase } from "@/lib/supabase";
 import { shiftSchema, ShiftFormValues, timeOffSchema } from "./schemas";
 import { revalidatePath } from "next/cache";
-import { addDays, startOfWeek, isSunday, format, startOfDay, endOfDay, isBefore, subDays } from "date-fns";
+import { addDays, startOfWeek, isSunday, format, startOfDay, endOfDay, isBefore, getISOWeek, startOfMonth, endOfMonth } from "date-fns";
 import { WEEK_STARTS_ON } from "@/lib/date-utils";
 import { z } from "zod";
 
@@ -46,10 +46,17 @@ export async function createShift(data: ShiftFormValues) {
     const [endHour, endMinute] = end_time.split(":").map(Number);
     endDateTime.setHours(endHour, endMinute, 0, 0);
 
+    const { data: employee } = await supabase
+        .from("employees")
+        .select("hourly_rate")
+        .eq("id", employee_id)
+        .single();
+
     const { error } = await supabase.from("shifts").insert({
         employee_id,
         start_time: startDateTime.toISOString(),
         end_time: endDateTime.toISOString(),
+        hourly_rate: employee?.hourly_rate || 0,
     });
 
     if (error) {
@@ -61,15 +68,6 @@ export async function createShift(data: ShiftFormValues) {
     return { success: true };
 }
 
-const IS_TRADING_SUNDAY = false;
-
-type ShiftSlot = {
-    start: string;
-    end: string;
-    duration: number;
-    requiresLeadership?: boolean;
-};
-
 export async function generateSchedule(dateStr?: string) {
     const { data: employees } = await supabase.from("employees").select("*");
     if (!employees || employees.length === 0) return { error: "No employees found" };
@@ -78,6 +76,8 @@ export async function generateSchedule(dateStr?: string) {
     const startOfCurrentWeek = startOfWeek(referenceDate, { weekStartsOn: WEEK_STARTS_ON });
     const endOfCurrentWeek = addDays(startOfCurrentWeek, 6);
     const todayAbsolute = startOfDay(new Date());
+
+    const weekNumber = getISOWeek(startOfCurrentWeek);
 
     const [timeOffsReq, holidaysReq, existingShiftsReq] = await Promise.all([
         supabase.from("time_off_requests").select("*").gte("date", startOfCurrentWeek.toISOString()).lte("date", endOfCurrentWeek.toISOString()),
@@ -94,11 +94,28 @@ export async function generateSchedule(dateStr?: string) {
 
     const staff = employees
         .filter(e => e.role === "cashier" || e.role === "student")
-        .sort(() => 0.5 - Math.random());
+        .sort((a, b) => a.id - b.id);
 
-    const primaryMorningWorker = staff[0];
-    const primaryEveningWorker = staff.length > 1 ? staff[1] : staff[0];
-    const reservePool = staff.slice(2);
+    let primaryMorningWorker: typeof employees[0];
+    let primaryEveningWorker: typeof employees[0];
+    let reservePool: typeof employees = [];
+
+    if (staff.length >= 2) {
+        const isEvenWeek = weekNumber % 2 === 0;
+
+        if (isEvenWeek) {
+            primaryMorningWorker = staff[0];
+            primaryEveningWorker = staff[1];
+        } else {
+            primaryMorningWorker = staff[1];
+            primaryEveningWorker = staff[0];
+        }
+
+        reservePool = staff.slice(2);
+    } else {
+        primaryMorningWorker = staff[0];
+        primaryEveningWorker = staff[0];
+    }
 
     const newShiftsToInsert: { employee_id: number; start_time: string; end_time: string }[] = [];
 
@@ -154,16 +171,14 @@ export async function generateSchedule(dateStr?: string) {
             const isSlotTaken = existingShifts.some(s => {
                 const sTime = new Date(s.start_time).getTime();
                 const diffHours = Math.abs(sTime - slotTimeMs) / (1000 * 60 * 60);
-                return diffHours < 3; // Якщо є зміна в межах +/- 3 годин
+                return diffHours < 3;
             }) || newShiftsToInsert.some(s => {
                 const sTime = new Date(s.start_time).getTime();
                 const diffHours = Math.abs(sTime - slotTimeMs) / (1000 * 60 * 60);
                 return diffHours < 3;
             });
 
-            if (isSlotTaken) {
-                continue;
-            }
+            if (isSlotTaken) continue;
 
             let assignedWorker: typeof employees[0] | null | undefined = null;
 
@@ -195,7 +210,8 @@ export async function generateSchedule(dateStr?: string) {
                 newShiftsToInsert.push({
                     employee_id: assignedWorker.id,
                     start_time: startDateTime.toISOString(),
-                    end_time: endDateTime.toISOString()
+                    end_time: endDateTime.toISOString(),
+                    hourly_rate: assignedWorker.hourly_rate || 0
                 });
             }
         }
@@ -341,4 +357,71 @@ export async function toggleHoliday(date: Date) {
         await supabase.from("holidays").insert({ date: dateStr, name: "Holiday" });
     }
     revalidatePath("/");
+}
+
+export async function getDetailedStats(period: 'month' | 'all', date: Date) {
+    let query = supabase
+        .from("shifts")
+        .select(`
+      id,
+      start_time,
+      end_time,
+      hourly_rate,
+      employee:employees (
+        id,
+        first_name,
+        last_name,
+        role
+      )
+    `);
+
+    if (period === 'month') {
+        const start = startOfMonth(date);
+        const end = endOfMonth(date);
+        query = query
+            .gte("start_time", start.toISOString())
+            .lte("start_time", end.toISOString());
+    }
+
+    const { data: shifts, error } = await query;
+
+    if (error || !shifts) return null;
+
+    const statsByEmployee: Record<number, {
+        name: string,
+        role: string,
+        hours: number,
+        earned: number
+    }> = {};
+
+    let staffTotalEarned = 0;
+
+    shifts.forEach((shift) => {
+        const start = new Date(shift.start_time).getTime();
+        const end = new Date(shift.end_time).getTime();
+        const hours = (end - start) / (1000 * 60 * 60);
+
+        const rate = shift.hourly_rate ?? shift.employee?.hourly_rate ?? 0;
+        const earned = hours * rate;
+
+        const empId = shift.employee.id;
+        const empName = `${shift.employee.first_name} ${shift.employee.last_name}`;
+        const role = shift.employee.role;
+
+        if (!statsByEmployee[empId]) {
+            statsByEmployee[empId] = { name: empName, role, hours: 0, earned: 0 };
+        }
+        statsByEmployee[empId].hours += hours;
+        statsByEmployee[empId].earned += earned;
+
+        if (role === 'student' || role === 'cashier') {
+            staffTotalEarned += earned;
+        }
+    });
+
+    return {
+        byEmployee: Object.values(statsByEmployee),
+        staffTotalEarned: Math.round(staffTotalEarned),
+        totalShifts: shifts.length
+    };
 }
