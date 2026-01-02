@@ -12,20 +12,23 @@ export async function ScheduleGrid({ date }: Props) {
     const { start, end } = getWeekRange(date);
     const days = getWeekDays(start);
 
-    const [shiftsData, employeesData] = await Promise.all([
+    const [shiftsData, employeesData, holidaysData] = await Promise.all([
         getShiftsForWeek(start, end),
         supabase.from("employees").select("*").order("first_name"),
+        supabase.from("holidays").select("*").gte("date", start.toISOString()).lte("date", end.toISOString())
     ]);
 
     // @ts-ignore
     const shifts: Shift[] = shiftsData || [];
     const employees: Employee[] = (employeesData.data as Employee[]) || [];
+    const holidays = holidaysData.data || [];
 
     return (
         <ScheduleGridClient
             initialShifts={shifts}
             employees={employees}
             days={days}
+            holidays={holidays}
         />
     );
 }

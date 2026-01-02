@@ -1,20 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { format, isSameDay } from "date-fns";
+import { format, isSameDay, isSunday } from "date-fns";
 import { ShiftCard } from "./shift-card";
 import { AddShiftDialog } from "./add-shift-dialog";
 import { EditShiftDialog } from "./edit-shift-dialog";
 import { Shift, Employee } from "@/types";
+import { toggleHoliday } from "../actions";
+import { cn } from "@/lib/utils";
 
 interface Props {
     initialShifts: Shift[];
     employees: Employee[];
     days: Date[];
+    holidays: any[];
 }
 
-export function ScheduleGridClient({ initialShifts, employees, days }: Props) {
+export function ScheduleGridClient({ initialShifts, employees, days, holidays }: Props) {
     const [editingShift, setEditingShift] = useState<Shift | null>(null);
+
+    const handleDayClick = async (date: Date) => {
+        await toggleHoliday(date);
+    };
 
     return (
         <div className="border rounded-lg bg-white overflow-hidden">
@@ -24,17 +31,38 @@ export function ScheduleGridClient({ initialShifts, employees, days }: Props) {
                 <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-blue-200"></div> Cashier</div>
                 <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-emerald-200"></div> Student</div>
             </div>
+
             <div className="grid grid-cols-7 border-b bg-gray-50">
-                {days.map((day) => (
-                    <div key={day.toString()} className="p-3 text-center border-r last:border-r-0">
-                        <div className="font-medium text-sm text-gray-500">
-                            {format(day, "EEE")}
+                {days.map((day) => {
+                    const dateStr = format(day, "yyyy-MM-dd");
+                    const isHoliday = holidays.some(h => h.date === dateStr);
+                    const isSun = isSunday(day);
+                    const isSpecial = isHoliday || isSun;
+
+                    return (
+                        <div
+                            key={day.toString()}
+                            onClick={() => handleDayClick(day)}
+                            title="Click to toggle Holiday status"
+                            className={cn(
+                                "p-3 text-center border-r last:border-r-0 cursor-pointer transition-colors hover:bg-gray-100",
+                                isSpecial && "bg-red-50 hover:bg-red-100 text-red-600"
+                            )}
+                        >
+                            <div className="font-medium text-sm opacity-70">
+                                {format(day, "EEE")}
+                            </div>
+                            <div className={cn("font-bold text-lg", isSpecial && "text-red-700")}>
+                                {format(day, "d")}
+                            </div>
+                            {isHoliday && (
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-red-500 mt-1">
+                                    Holiday
+                                </div>
+                            )}
                         </div>
-                        <div className="font-bold text-lg">
-                            {format(day, "d")}
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             <div className="grid grid-cols-7 min-h-[500px]">

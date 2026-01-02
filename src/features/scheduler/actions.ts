@@ -3,8 +3,9 @@
 import { supabase } from "@/lib/supabase";
 import { shiftSchema, ShiftFormValues, timeOffSchema } from "./schemas";
 import { revalidatePath } from "next/cache";
-import { addDays, startOfWeek, isSunday, format, startOfDay, endOfDay, isBefore } from "date-fns";
+import { addDays, startOfWeek, isSunday, format, startOfDay, endOfDay, isBefore, subDays } from "date-fns";
 import { WEEK_STARTS_ON } from "@/lib/date-utils";
+import { z } from "zod";
 
 export async function getShiftsForWeek(startOfWeek: Date, endOfWeek: Date) {
     const { data, error } = await supabase
@@ -76,112 +77,126 @@ export async function generateSchedule(dateStr?: string) {
     const referenceDate = dateStr ? new Date(dateStr) : new Date();
     const startOfCurrentWeek = startOfWeek(referenceDate, { weekStartsOn: WEEK_STARTS_ON });
     const endOfCurrentWeek = addDays(startOfCurrentWeek, 6);
-
     const todayAbsolute = startOfDay(new Date());
 
-    const { data: timeOffs } = await supabase
-        .from("time_off_requests")
-        .select("*")
-        .gte("date", startOfCurrentWeek.toISOString())
-        .lte("date", endOfCurrentWeek.toISOString());
+    const [timeOffsReq, holidaysReq, existingShiftsReq] = await Promise.all([
+        supabase.from("time_off_requests").select("*").gte("date", startOfCurrentWeek.toISOString()).lte("date", endOfCurrentWeek.toISOString()),
+        supabase.from("holidays").select("*").gte("date", startOfCurrentWeek.toISOString()).lte("date", endOfCurrentWeek.toISOString()),
+        supabase.from("shifts").select("*").gte("start_time", startOfCurrentWeek.toISOString()).lte("start_time", endOfDay(endOfCurrentWeek).toISOString())
+    ]);
 
-    const { data: existingShifts } = await supabase
-        .from("shifts")
-        .select("*")
-        .gte("start_time", startOfCurrentWeek.toISOString())
-        .lte("start_time", endOfDay(endOfCurrentWeek).toISOString());
+    const timeOffs = timeOffsReq.data || [];
+    const holidays = holidaysReq.data || [];
+    const existingShifts = existingShiftsReq.data || [];
 
-    const leadership = employees.filter(e => e.role === "manager" || e.role === "owner");
+    const owners = employees.filter(e => e.role === "owner");
+    const managers = employees.filter(e => e.role === "manager");
+
+    const staff = employees
+        .filter(e => e.role === "cashier" || e.role === "student")
+        .sort(() => 0.5 - Math.random());
+
+    const primaryMorningWorker = staff[0];
+    const primaryEveningWorker = staff.length > 1 ? staff[1] : staff[0];
+    const reservePool = staff.slice(2);
 
     const newShiftsToInsert: { employee_id: number; start_time: string; end_time: string }[] = [];
 
-    const hoursUsed: Record<number, number> = {};
-    employees.forEach(emp => {
-        const empShifts = existingShifts?.filter(s => s.employee_id === emp.id) || [];
-        const totalHours = empShifts.reduce((acc, shift) => {
-            const diff = new Date(shift.end_time).getTime() - new Date(shift.start_time).getTime();
-            return acc + (diff / (1000 * 60 * 60));
-        }, 0);
-        hoursUsed[emp.id] = totalHours;
-    });
+    const isAvailable = (empId: number, dateStr: string, startTimeIso: string) => {
+        if (timeOffs.some(t => t.employee_id === empId && t.date === dateStr)) return false;
+
+        if (existingShifts.some(s => s.employee_id === empId && s.start_time.startsWith(dateStr))) return false;
+        if (newShiftsToInsert.some(s => s.employee_id === empId && s.start_time.startsWith(dateStr))) return false;
+
+        return true;
+    };
+
+    const findWorker = (priorityEmp: typeof employees[0] | undefined, backupPool: typeof employees, dateStr: string, slotIso: string) => {
+        if (priorityEmp && isAvailable(priorityEmp.id, dateStr, slotIso)) return priorityEmp;
+        const backup = backupPool.find(e => isAvailable(e.id, dateStr, slotIso));
+        if (backup) return backup;
+        const manager = managers.find(m => isAvailable(m.id, dateStr, slotIso));
+        if (manager) return manager;
+        return null;
+    };
 
     for (let i = 0; i < 7; i++) {
         const currentDate = addDays(startOfCurrentWeek, i);
+        const dateStr = format(currentDate, "yyyy-MM-dd");
 
-        if (isBefore(currentDate, todayAbsolute)) {
-            continue;
-        }
+        if (isBefore(currentDate, todayAbsolute)) continue;
 
         const isSun = isSunday(currentDate);
-        let slots: ShiftSlot[] = [];
+        const isHoliday = holidays.some(h => h.date === dateStr);
+        const isSpecialDay = isSun || isHoliday;
+        const dayOfWeek = format(currentDate, 'iiii');
 
-        if (!isSun || IS_TRADING_SUNDAY) {
+        let slots: { start: string, end: string, type: 'morning' | 'evening' }[] = [];
+
+        if (isSpecialDay) {
             slots = [
-                { start: "06:00", end: "14:30", duration: 8.5 },
-                { start: "14:30", end: "23:00", duration: 8.5 },
+                { start: "09:00", end: "15:00", type: 'morning' },
+                { start: "15:00", end: "21:00", type: 'evening' }
             ];
         } else {
             slots = [
-                { start: "09:00", end: "15:00", duration: 6, requiresLeadership: true },
-                { start: "15:00", end: "21:00", duration: 6, requiresLeadership: true }
+                { start: "05:30", end: "14:30", type: 'morning' },
+                { start: "14:30", end: "23:00", type: 'evening' }
             ];
         }
 
         for (const slot of slots) {
-            const startDateTime = new Date(currentDate);
-            const [sh, sm] = slot.start.split(":").map(Number);
-            startDateTime.setHours(sh, sm, 0, 0);
+            const startDateTime = new Date(dateStr + "T" + slot.start + ":00");
+            const endDateTime = new Date(dateStr + "T" + slot.end + ":00");
+            const slotIso = startDateTime.toISOString();
+            const slotTimeMs = startDateTime.getTime();
 
-            const endDateTime = new Date(currentDate);
-            const [eh, em] = slot.end.split(":").map(Number);
-            endDateTime.setHours(eh, em, 0, 0);
-
-            const slotStartTime = startDateTime.getTime();
-
-            const alreadyExistsInDb = existingShifts?.some(s => {
-                const shiftTime = new Date(s.start_time).getTime();
-                return Math.abs(shiftTime - slotStartTime) < 60000;
+            const isSlotTaken = existingShifts.some(s => {
+                const sTime = new Date(s.start_time).getTime();
+                const diffHours = Math.abs(sTime - slotTimeMs) / (1000 * 60 * 60);
+                return diffHours < 3; // Якщо є зміна в межах +/- 3 годин
+            }) || newShiftsToInsert.some(s => {
+                const sTime = new Date(s.start_time).getTime();
+                const diffHours = Math.abs(sTime - slotTimeMs) / (1000 * 60 * 60);
+                return diffHours < 3;
             });
 
-            const alreadyGenerated = newShiftsToInsert.some(s => {
-                const shiftTime = new Date(s.start_time).getTime();
-                return Math.abs(shiftTime - slotStartTime) < 60000;
-            });
-
-            if (alreadyExistsInDb || alreadyGenerated) {
+            if (isSlotTaken) {
                 continue;
             }
 
-            let pool = slot.requiresLeadership ? leadership : employees;
-            pool = [...pool].sort(() => 0.5 - Math.random());
+            let assignedWorker: typeof employees[0] | null | undefined = null;
 
-            const candidate = pool.find(emp => {
-                if ((hoursUsed[emp.id] + slot.duration) > emp.max_hours_per_week) return false;
+            if (isSpecialDay) {
+                if (slot.type === 'morning') {
+                    assignedWorker = owners.find(o => isAvailable(o.id, dateStr, slotIso));
+                } else {
+                    assignedWorker = managers.find(m => isAvailable(m.id, dateStr, slotIso));
+                    if (!assignedWorker) {
+                        assignedWorker = findWorker(primaryEveningWorker, [...reservePool, primaryMorningWorker], dateStr, slotIso);
+                    }
+                }
+            } else {
+                if (slot.type === 'morning') {
+                    if (dayOfWeek === 'Saturday') {
+                        assignedWorker = managers.find(m => isAvailable(m.id, dateStr, slotIso));
+                        if (!assignedWorker) {
+                            assignedWorker = findWorker(primaryMorningWorker, [...reservePool, primaryEveningWorker], dateStr, slotIso);
+                        }
+                    } else {
+                        assignedWorker = findWorker(primaryMorningWorker, [...reservePool, primaryEveningWorker], dateStr, slotIso);
+                    }
+                } else {
+                    assignedWorker = findWorker(primaryEveningWorker, [...reservePool, primaryMorningWorker], dateStr, slotIso);
+                }
+            }
 
-                const dateStr = format(currentDate, "yyyy-MM-dd");
-
-                const hasTimeOff = timeOffs?.some(t =>
-                    t.employee_id === emp.id && t.date === dateStr
-                );
-                if (hasTimeOff) return false;
-
-                const worksInDbToday = existingShifts?.some(s =>
-                    s.employee_id === emp.id && s.start_time.startsWith(dateStr)
-                );
-                const worksInNewToday = newShiftsToInsert.some(s =>
-                    s.employee_id === emp.id && s.start_time.startsWith(dateStr)
-                );
-
-                return !worksInDbToday && !worksInNewToday;
-            });
-
-            if (candidate) {
+            if (assignedWorker) {
                 newShiftsToInsert.push({
-                    employee_id: candidate.id,
+                    employee_id: assignedWorker.id,
                     start_time: startDateTime.toISOString(),
-                    end_time: endDateTime.toISOString(),
+                    end_time: endDateTime.toISOString()
                 });
-                hoursUsed[candidate.id] += slot.duration;
             }
         }
     }
@@ -313,4 +328,17 @@ export async function deleteTimeOffRequest(id: number) {
     if (error) return { error: "Failed" };
     revalidatePath("/");
     return { success: true };
+}
+
+export async function toggleHoliday(date: Date) {
+    const dateStr = format(date, "yyyy-MM-dd");
+
+    const { data } = await supabase.from("holidays").select("*").eq("date", dateStr).single();
+
+    if (data) {
+        await supabase.from("holidays").delete().eq("date", dateStr);
+    } else {
+        await supabase.from("holidays").insert({ date: dateStr, name: "Holiday" });
+    }
+    revalidatePath("/");
 }
