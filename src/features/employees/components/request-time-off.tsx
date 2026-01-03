@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Ban } from "lucide-react";
+import { Ban } from "lucide-react";
 import { toast } from "sonner";
 import { createTimeOffRequest } from "@/features/scheduler/actions";
 
@@ -13,11 +13,13 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import { useLanguage } from "@/context/language-context";
 
-export function RequestTimeOff({ employeeId }: { employeeId: number }) {
+export function RequestTimeOff({ employeeId, label }: { employeeId: number, label?: string }) {
     const [date, setDate] = useState<Date>();
     const [loading, setLoading] = useState(false);
     const [open, setOpen] = useState(false);
+    const { t } = useLanguage();
 
     async function handleRequest() {
         if (!date) return;
@@ -34,7 +36,7 @@ export function RequestTimeOff({ employeeId }: { employeeId: number }) {
         if (res.error) {
             toast.error(res.error);
         } else {
-            toast.success(`Time off requested for ${format(date, "MMM d")}`);
+            toast.success(`${t("employee.request_sent")} ${format(date, "MMM d")}`);
             setOpen(false);
             setDate(undefined);
         }
@@ -45,12 +47,12 @@ export function RequestTimeOff({ employeeId }: { employeeId: number }) {
             <PopoverTrigger asChild>
                 <Button variant="destructive" className="w-full sm:w-auto">
                     <Ban className="mr-2 h-4 w-4" />
-                    I can't work...
+                    {label || t("employee.cant_work")}
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
                 <div className="p-3 border-b bg-gray-50 text-sm font-medium text-center">
-                    Select a date you are unavailable
+                    {t("employee.select_date")}
                 </div>
                 <Calendar
                     mode="single"
@@ -66,7 +68,7 @@ export function RequestTimeOff({ employeeId }: { employeeId: number }) {
                         onClick={handleRequest}
                         variant="destructive"
                     >
-                        {loading ? "Sending..." : "Confirm Request"}
+                        {loading ? t("common.saving") : t("employee.confirm_request")}
                     </Button>
                 </div>
             </PopoverContent>

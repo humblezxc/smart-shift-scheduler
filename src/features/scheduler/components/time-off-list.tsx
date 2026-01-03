@@ -1,25 +1,20 @@
-import { supabase } from "@/lib/supabase";
+"use client";
+
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DeleteTimeOffButton } from "./delete-time-off-button";
+import { useLanguage } from "@/context/language-context";
 
-export async function TimeOffList() {
-    const { data: requests } = await supabase
-        .from("time_off_requests")
-        .select(`
-      *,
-      employee:employees (first_name, last_name, role)
-    `)
-        .gte("date", new Date().toISOString())
-        .order("date", { ascending: true });
+export function TimeOffList({ requests }: { requests: any[] }) {
+    const { t } = useLanguage();
 
     return (
         <Card className="h-full">
             <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex justify-between items-center">
-                    <span>📅 Availability / Requests</span>
+                    <span>📅 {t("common.requests") || "Requests"}</span>
                     <Badge variant="secondary">{requests?.length || 0}</Badge>
                 </CardTitle>
             </CardHeader>
@@ -27,7 +22,7 @@ export async function TimeOffList() {
                 <ScrollArea className="h-[300px] px-4">
                     {!requests?.length && (
                         <div className="text-center text-gray-400 py-8 text-sm">
-                            No active requests
+                            {t("common.no_active_requests") || "No active requests"}
                         </div>
                     )}
                     <div className="space-y-2 pb-4 pt-2">

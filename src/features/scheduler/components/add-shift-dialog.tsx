@@ -34,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { shiftSchema, ShiftFormValues } from "../schemas";
 import { createShift } from "../actions";
 import { Employee } from "@/types";
+import { useLanguage } from "@/context/language-context";
 
 interface Props {
     date: Date;
@@ -42,6 +43,7 @@ interface Props {
 
 export function AddShiftDialog({ date, employees }: Props) {
     const [open, setOpen] = useState(false);
+    const { t } = useLanguage();
 
     const form = useForm<ShiftFormValues>({
         resolver: zodResolver(shiftSchema) as any,
@@ -68,12 +70,12 @@ export function AddShiftDialog({ date, employees }: Props) {
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="ghost" size="sm" className="w-full mt-2 text-gray-400 hover:text-primary hover:bg-gray-100 border border-dashed border-gray-200">
-                    <Plus className="w-4 h-4 mr-1" /> Add
+                    <Plus className="w-4 h-4 mr-1" /> {t("common.add")}
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Add Shift</DialogTitle>
+                    <DialogTitle>{t("scheduler.add_shift")}</DialogTitle>
                 </DialogHeader>
 
                 <Form {...form}>
@@ -84,14 +86,14 @@ export function AddShiftDialog({ date, employees }: Props) {
                             name="employee_id"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Employee</FormLabel>
+                                    <FormLabel>{t("common.staff")}</FormLabel>
                                     <Select
                                         onValueChange={(val) => field.onChange(Number(val))}
                                         value={field.value ? String(field.value) : undefined}
                                     >
                                         <FormControl>
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select employee" />
+                                                <SelectValue placeholder={t("forms.select_employee")} />
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
@@ -113,7 +115,7 @@ export function AddShiftDialog({ date, employees }: Props) {
                                 name="start_time"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Start Time</FormLabel>
+                                        <FormLabel>{t("forms.start_time")}</FormLabel>
                                         <FormControl>
                                             <Input type="time" {...field} />
                                         </FormControl>
@@ -127,7 +129,7 @@ export function AddShiftDialog({ date, employees }: Props) {
                                 name="end_time"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>End Time</FormLabel>
+                                        <FormLabel>{t("forms.end_time")}</FormLabel>
                                         <FormControl>
                                             <Input type="time" {...field} />
                                         </FormControl>
@@ -136,8 +138,7 @@ export function AddShiftDialog({ date, employees }: Props) {
                                 )}
                             />
                         </div>
-
-                        <Button type="submit" className="w-full">Save Shift</Button>
+                        <Button type="submit" className="w-full">{t("forms.save_shift")}</Button>
                     </form>
                 </Form>
             </DialogContent>

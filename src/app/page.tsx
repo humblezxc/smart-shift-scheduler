@@ -1,15 +1,9 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmployeeList } from "@/features/employees/components/employee-list";
-import { AddEmployeeDialog } from "@/features/employees/components/add-employee-dialog";
-import { ScheduleGrid } from "@/features/scheduler/components/schedule-grid";
-import { GenerateButton } from "@/features/scheduler/components/generate-button";
-import { WeekNavigation } from "@/features/scheduler/components/week-navigation";
-import { CalendarPicker } from "@/features/scheduler/components/calendar-picker";
-import { getWeekRange } from "@/lib/date-utils";
-import { getWeekStats } from "@/features/scheduler/actions";
-import { StatsCard } from "@/features/scheduler/components/stats-card";
-import { TimeOffList } from "@/features/scheduler/components/time-off-list";
-export default async function Dashboard({searchParams,}: { searchParams: Promise<{ date?: string }>; }) {
+import { getWeekRange, getWeekDays } from "@/lib/date-utils";
+import { getWeekStats, getShiftsForWeek } from "@/features/scheduler/actions";
+import { supabase } from "@/lib/supabase";
+import { DashboardView } from "@/features/scheduler/components/dashboard-view";
+
+export default async function Dashboard({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const params = await searchParams;
 
   const currentDate = params.date
@@ -17,50 +11,34 @@ export default async function Dashboard({searchParams,}: { searchParams: Promise
       : new Date();
 
   const { start, end } = getWeekRange(currentDate);
+  const days = getWeekDays(start);
 
-  const stats = await getWeekStats(start, end);
+  const [stats, employeesRes, timeOffsRes, shiftsRes, holidaysRes] = await Promise.all([
+    getWeekStats(start, end),
+    supabase.from("employees").select("*").order("first_name"),
+    supabase
+        .from("time_off_requests")
+        .select(`*, employee:employees (first_name, last_name, role)`)
+        .gte("date", start.toISOString())
+        .order("date", { ascending: true }),
+    getShiftsForWeek(start, end),
+    supabase.from("holidays").select("*").gte("date", start.toISOString()).lte("date", end.toISOString())
+  ]);
+
+  const employees = employeesRes.data || [];
+  const timeOffs = timeOffsRes.data || [];
+  const shifts = shiftsRes || [];
+  const holidays = holidaysRes.data || [];
 
   return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
-        <header className="bg-white border-b h-16 flex items-center px-6 justify-between">
-          <h1 className="text-xl font-bold tracking-tight">🏪 Smart Shift Scheduler</h1>
-          <div className="flex gap-4">
-            <AddEmployeeDialog />
-            <GenerateButton />
-          </div>
-        </header>
-
-        <main className="flex-1 p-6 grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6">
-          <aside className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Select Week</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CalendarPicker />
-              </CardContent>
-            </Card>
-            <StatsCard stats={stats} />
-            <div className="h-[350px]">
-              <TimeOffList />
-            </div>
-            <Card className="overflow-hidden">
-              <CardHeader className="pb-2">
-                <CardTitle>Staff</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="scale-90 origin-top-left w-[110%]">
-                  <EmployeeList />
-                </div>
-              </CardContent>
-            </Card>
-          </aside>
-
-          <section className="space-y-6">
-            <WeekNavigation />
-            <ScheduleGrid date={currentDate} />
-          </section>
-        </main>
-      </div>
+      <DashboardView
+          currentDate={currentDate}
+          stats={stats}
+          employees={employees}
+          timeOffs={timeOffs}
+          shifts={shifts}
+          holidays={holidays}
+          days={days}
+      />
   );
 }

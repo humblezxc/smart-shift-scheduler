@@ -16,14 +16,17 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useLanguage } from "@/context/language-context";
 
 interface Props {
     employeeId: number;
     date: Date;
+    label?: string;
 }
 
-export function RejectShiftButton({ employeeId, date }: Props) {
+export function RejectShiftButton({ employeeId, date, label }: Props) {
     const [loading, setLoading] = useState(false);
+    const { t } = useLanguage();
 
     async function handleReject() {
         setLoading(true);
@@ -37,7 +40,7 @@ export function RejectShiftButton({ employeeId, date }: Props) {
         if (res.error) {
             toast.error(res.error);
         } else {
-            toast.success("Shift rejected. Manager notified.");
+            toast.success(t("employee.shift_rejected"));
             window.location.reload();
         }
     }
@@ -51,24 +54,24 @@ export function RejectShiftButton({ employeeId, date }: Props) {
                     className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 px-2"
                 >
                     <XCircle className="w-4 h-4 mr-1" />
-                    Can't work
+                    {label || t("employee.reject_shift")}
                 </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogTitle>{t("employee.confirm_reject")}</AlertDialogTitle>
                     <AlertDialogDescription>
-                        This will mark you as unavailable for this day. The manager will see this request.
+                        {t("employee.reject_desc")}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>{t("employee.cancel")}</AlertDialogCancel>
                     <AlertDialogAction
                         onClick={handleReject}
                         className="bg-red-600 hover:bg-red-700"
                         disabled={loading}
                     >
-                        {loading ? "Processing..." : "Yes, I can't work"}
+                        {loading ? t("common.saving") : t("employee.confirm")}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

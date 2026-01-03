@@ -8,6 +8,7 @@ import { EditShiftDialog } from "./edit-shift-dialog";
 import { Shift, Employee } from "@/types";
 import { toggleHoliday } from "../actions";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/context/language-context";
 
 interface Props {
     initialShifts: Shift[];
@@ -18,18 +19,25 @@ interface Props {
 
 export function ScheduleGridClient({ initialShifts, employees, days, holidays }: Props) {
     const [editingShift, setEditingShift] = useState<Shift | null>(null);
+    const { t } = useLanguage();
 
     const handleDayClick = async (date: Date) => {
         await toggleHoliday(date);
     };
 
+    const getTranslatedDay = (date: Date) => {
+        const englishDay = format(date, "EEEE");
+        const translated = t(`employee.${englishDay}`);
+        return translated.substring(0, 3);
+    };
+
     return (
         <div className="border rounded-lg bg-white overflow-hidden">
-            <div className="flex gap-4 px-4 py-2 text-xs text-gray-500 bg-gray-50/50 border-b">
-                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-purple-200"></div> Owner</div>
-                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-amber-200"></div> Manager</div>
-                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-blue-200"></div> Cashier</div>
-                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-emerald-200"></div> Student</div>
+            <div className="flex gap-4 px-4 py-2 text-xs text-gray-500 bg-gray-50/50 border-b overflow-x-auto">
+                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-purple-200"></div> {t("roles.owner")}</div>
+                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-amber-200"></div> {t("roles.manager")}</div>
+                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-blue-200"></div> {t("roles.cashier")}</div>
+                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-emerald-200"></div> {t("roles.student")}</div>
             </div>
 
             <div className="grid grid-cols-7 border-b bg-gray-50">
@@ -50,14 +58,14 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays }:
                             )}
                         >
                             <div className="font-medium text-sm opacity-70">
-                                {format(day, "EEE")}
+                                {getTranslatedDay(day)}
                             </div>
                             <div className={cn("font-bold text-lg", isSpecial && "text-red-700")}>
                                 {format(day, "d")}
                             </div>
                             {isHoliday && (
                                 <div className="text-[10px] font-bold uppercase tracking-wider text-red-500 mt-1">
-                                    Holiday
+                                    {t("scheduler.holiday")}
                                 </div>
                             )}
                         </div>

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useState } from "react";
 import { Employee } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,28 +14,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Link2, Check } from "lucide-react";
 import { toast } from "sonner";
+import { useLanguage } from "@/context/language-context";
 
-export function EmployeeList() {
-    const [employees, setEmployees] = useState<Employee[]>([]);
+export function EmployeeList({ employees }: { employees: Employee[] }) {
     const [copiedId, setCopiedId] = useState<number | null>(null);
-
-    useEffect(() => {
-        fetchEmployees();
-    }, []);
-
-    async function fetchEmployees() {
-        const { data } = await supabase.from("employees").select("*").order("first_name");
-        if (data) {
-            // @ts-ignore
-            setEmployees(data);
-        }
-    }
+    const { t, language } = useLanguage();
 
     const copyLink = (token: string, id: number) => {
-        const url = `${window.location.origin}/s/${token}`;
+        const url = `${window.location.origin}/s/${token}?lang=${language}`;
 
         navigator.clipboard.writeText(url);
-        toast.success("Personal link copied to clipboard!");
+        toast.success(t("common.link_copied"));
 
         setCopiedId(id);
         setTimeout(() => setCopiedId(null), 2000);
@@ -54,16 +42,15 @@ export function EmployeeList() {
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead className="text-right">Action</TableHead>
+                        <TableHead>{t("common.employees_list")}</TableHead>
+                        <TableHead>{t("common.role")}</TableHead>
+                        <TableHead className="text-right">{t("common.actions")}</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {employees.map((employee) => (
                         <TableRow key={employee.id}>
                             <TableCell className="font-medium">
-
                                 {employee.first_name} {employee.last_name}
                             </TableCell>
                             <TableCell>
@@ -79,7 +66,7 @@ export function EmployeeList() {
                                         // @ts-ignore
                                         copyLink(employee.share_token, employee.id)
                                     }
-                                    title="Copy Schedule Link"
+                                    title={t("common.copy_link")}
                                 >
                                     {copiedId === employee.id ? (
                                         <Check className="h-4 w-4 text-green-600" />

@@ -5,8 +5,10 @@ import { format, addWeeks, subWeeks, startOfWeek, endOfWeek } from "date-fns";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WEEK_STARTS_ON } from "@/lib/date-utils";
+import {useLanguage} from "@/context/language-context";
 
 export function WeekNavigation() {
+    const { t } = useLanguage();
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -43,7 +45,7 @@ export function WeekNavigation() {
                     onClick={() => handleNavigate(new Date())}
                     className="text-sm"
                 >
-                    Today
+                    {t('common.today')}
                 </Button>
             </div>
 

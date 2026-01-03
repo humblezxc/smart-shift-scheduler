@@ -6,10 +6,12 @@ import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { generateSchedule } from "../actions";
 import { useSearchParams } from "next/navigation";
+import { useLanguage } from "@/context/language-context";
 
 export function GenerateButton() {
     const [loading, setLoading] = useState(false);
     const searchParams = useSearchParams();
+    const { t } = useLanguage();
 
     async function handleGenerate() {
         setLoading(true);
@@ -37,7 +39,7 @@ export function GenerateButton() {
             disabled={loading}
             className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white border-0"
         >
-            {loading ? "AI is thinking..." : <><Sparkles className="mr-2 h-4 w-4" /> Generate Schedule (AI)</>}
+            {loading ? (t("scheduler.ai_thinking")) : (<><Sparkles className="mr-2 h-4 w-4" /> {t("scheduler.generate_ai")}</>)}
         </Button>
     );
 }

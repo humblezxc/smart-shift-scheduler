@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useLanguage } from "@/context/language-context";
 
 interface EditShiftDialogProps {
     shift: any;
@@ -43,6 +44,7 @@ interface EditShiftDialogProps {
 
 export function EditShiftDialog({ shift, employees, open, onOpenChange }: EditShiftDialogProps) {
     const [isDeleting, setIsDeleting] = useState(false);
+    const { t } = useLanguage();
 
     const form = useForm<ShiftFormValues>({
         resolver: zodResolver(shiftSchema) as any,
@@ -80,7 +82,7 @@ export function EditShiftDialog({ shift, employees, open, onOpenChange }: EditSh
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Edit Shift</DialogTitle>
+                    <DialogTitle>{t("common.edit")} {t("common.schedule")}</DialogTitle>
                 </DialogHeader>
 
                 <Form {...form}>
@@ -90,14 +92,14 @@ export function EditShiftDialog({ shift, employees, open, onOpenChange }: EditSh
                             name="employee_id"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Employee</FormLabel>
+                                    <FormLabel>{t("common.staff")}</FormLabel>
                                     <Select
                                         onValueChange={(v) => field.onChange(Number(v))}
                                         defaultValue={String(field.value)}
                                     >
                                         <FormControl>
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select employee" />
+                                                <SelectValue placeholder={t("forms.select_employee")} />
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
@@ -119,7 +121,7 @@ export function EditShiftDialog({ shift, employees, open, onOpenChange }: EditSh
                                 name="start_time"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Start Time</FormLabel>
+                                        <FormLabel>{t("forms.start_time")}</FormLabel>
                                         <FormControl>
                                             <Input type="time" {...field} />
                                         </FormControl>
@@ -132,7 +134,7 @@ export function EditShiftDialog({ shift, employees, open, onOpenChange }: EditSh
                                 name="end_time"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>End Time</FormLabel>
+                                        <FormLabel>{t("forms.end_time")}</FormLabel>
                                         <FormControl>
                                             <Input type="time" {...field} />
                                         </FormControl>
@@ -151,10 +153,10 @@ export function EditShiftDialog({ shift, employees, open, onOpenChange }: EditSh
                                 className="flex-1"
                             >
                                 <Trash2 className="w-4 h-4 mr-2" />
-                                Delete
+                                {t("common.delete")}
                             </Button>
                             <Button type="submit" className="flex-1">
-                                Save Changes
+                                {t("forms.save_changes")}
                             </Button>
                         </DialogFooter>
                     </form>

@@ -33,9 +33,11 @@ import {
 
 import { employeeSchema, EmployeeFormValues } from "../schemas";
 import { createEmployee } from "../actions";
+import { useLanguage } from "@/context/language-context";
 
 export function AddEmployeeDialog() {
     const [open, setOpen] = useState(false);
+    const { t } = useLanguage();
 
     const form = useForm<EmployeeFormValues>({
         resolver: zodResolver(employeeSchema) as any,
@@ -64,12 +66,12 @@ export function AddEmployeeDialog() {
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button>
-                    <Plus className="mr-2 h-4 w-4" /> Add Employee
+                    <Plus className="mr-2 h-4 w-4" /> {t("common.add_employee")}
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Add New Employee</DialogTitle>
+                    <DialogTitle>{t("common.add_employee")}</DialogTitle>
                 </DialogHeader>
 
                 <Form {...form}>
@@ -80,7 +82,7 @@ export function AddEmployeeDialog() {
                             name="first_name"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>First Name</FormLabel>
+                                    <FormLabel>{t("forms.first_name")}</FormLabel>
                                     <FormControl>
                                         <Input placeholder="John" {...field} />
                                     </FormControl>
@@ -94,7 +96,7 @@ export function AddEmployeeDialog() {
                             name="last_name"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Last Name</FormLabel>
+                                    <FormLabel>{t("forms.last_name")}</FormLabel>
                                     <FormControl>
                                         <Input placeholder="Doe" {...field} />
                                     </FormControl>
@@ -108,18 +110,18 @@ export function AddEmployeeDialog() {
                             name="role"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Role</FormLabel>
+                                    <FormLabel>{t("forms.role")}</FormLabel>
                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                                         <FormControl>
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select a role" />
+                                                <SelectValue placeholder={t("forms.select_role")} />
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            <SelectItem value="manager">Manager</SelectItem>
-                                            <SelectItem value="cashier">Cashier</SelectItem>
-                                            <SelectItem value="student">Student</SelectItem>
-                                            <SelectItem value="owner">Owner</SelectItem>
+                                            <SelectItem value="manager">{t("roles.manager")}</SelectItem>
+                                            <SelectItem value="cashier">{t("roles.cashier")}</SelectItem>
+                                            <SelectItem value="student">{t("roles.student")}</SelectItem>
+                                            <SelectItem value="owner">{t("roles.owner")}</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />
@@ -133,7 +135,7 @@ export function AddEmployeeDialog() {
                                 name="max_hours_per_week"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Max Hours</FormLabel>
+                                        <FormLabel>{t("forms.max_hours")}</FormLabel>
                                         <FormControl>
                                             <Input
                                                 type="number"
@@ -151,7 +153,7 @@ export function AddEmployeeDialog() {
                                 name="hourly_rate"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Rate (PLN)</FormLabel>
+                                        <FormLabel>{t("forms.hourly_rate")}</FormLabel>
                                         <FormControl>
                                             <Input
                                                 type="number"
@@ -165,9 +167,8 @@ export function AddEmployeeDialog() {
                                 )}
                             />
                         </div>
-
                         <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                            {form.formState.isSubmitting ? "Saving..." : "Save Employee"}
+                            {form.formState.isSubmitting ? t("common.saving") : t("forms.save_employee")}
                         </Button>
                     </form>
                 </Form>
