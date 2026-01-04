@@ -425,3 +425,21 @@ export async function getDetailedStats(period: 'month' | 'all', date: Date) {
         totalShifts: shifts.length
     };
 }
+
+export async function getMonthShifts(date: Date) {
+    const start = startOfMonth(date);
+    const end = endOfMonth(date);
+
+    const { data, error } = await supabase
+        .from("shifts")
+        .select("*")
+        .gte("start_time", start.toISOString())
+        .lte("end_time", end.toISOString());
+
+    if (error) {
+        console.error("Error fetching month shifts:", error);
+        return [];
+    }
+
+    return data;
+}
