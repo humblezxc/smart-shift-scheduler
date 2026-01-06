@@ -1,5 +1,5 @@
 # smart-shift-scheduler
-AI-powered workforce management &amp; shift scheduling platform for retail franchises (Next.js 14, TypeScript, Supabase).
+AI-powered workforce management &amp; shift scheduling platform for retail franchises (Next.js 16, TypeScript, Supabase).
 
 ## Getting Started
 
