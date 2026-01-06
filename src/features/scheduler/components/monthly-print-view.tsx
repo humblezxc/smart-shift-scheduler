@@ -5,6 +5,7 @@ import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, isWeeke
 import { pl, uk, enUS } from "date-fns/locale";
 import { Employee, Shift } from "@/types";
 import { useLanguage } from "@/context/language-context";
+import { calculateTotalHours } from "@/lib/shift-utils";
 
 interface Props {
     date: Date;
@@ -71,11 +72,7 @@ export const MonthlyPrintView = forwardRef<HTMLDivElement, Props>(({ date, emplo
                 <tbody>
                 {employees.map((emp) => {
                     const empShifts = shifts.filter(s => s.employee_id === emp.id);
-                    const totalHours = empShifts.reduce((acc, s) => {
-                        const start = new Date(s.start_time);
-                        const end = new Date(s.end_time);
-                        return acc + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-                    }, 0);
+                    const totalHours = calculateTotalHours(empShifts);
 
                     return (
                         <tr key={emp.id}>

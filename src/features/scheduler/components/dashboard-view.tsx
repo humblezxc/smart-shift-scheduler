@@ -12,7 +12,7 @@ import { TimeOffList } from "@/features/scheduler/components/time-off-list";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useLanguage } from "@/context/language-context";
 import { Employee } from "@/types";
-import { ExportButton } from "@/features/scheduler/components/export-button";
+import { ExportMenu } from "@/features/scheduler/components/export-menu";
 
 interface DashboardViewProps {
     stats: any;
@@ -42,7 +42,7 @@ export function DashboardView({stats, currentDate, employees, timeOffs, shifts, 
                 <div className="flex gap-2 sm:gap-4 items-center">
                     <LanguageSwitcher />
                     <AddEmployeeDialog />
-                    <ExportButton currentDate={currentDate} employees={employees} />
+                    <ExportMenu currentDate={currentDate} employees={employees} />
                     <GenerateButton />
                 </div>
             </header>

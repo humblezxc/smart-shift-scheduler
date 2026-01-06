@@ -29,6 +29,9 @@ export const translations = {
             no_active_requests: "No active requests",
             request_removed: "Request removed",
             error: "Error",
+            export: "Export",
+            export_schedule: "Monthly Schedule (A4 Landscape)",
+            export_timesheets: "Individual Timesheets (A4 Portrait)",
         },
         stats: {
             title: "Financial Statistics",
@@ -88,6 +91,17 @@ export const translations = {
             confirm_request: "Confirm Request",
             request_sent: "Time off requested for",
             Monday: "Monday", Tuesday: "Tuesday", Wednesday: "Wednesday", Thursday: "Thursday", Friday: "Friday", Saturday: "Saturday", Sunday: "Sunday"
+        },
+        timesheet: {
+            title: "Register of hours for order execution",
+            subtitle: "Settlement of hours for contract no. ____ in",
+            contractor: "Contractor (Employee)",
+            day: "Day",
+            hours: "Hours / Time range",
+            sign_contractor: "Contractor Signature",
+            sign_client: "Client Signature",
+            total: "Total",
+            generated: "Generated automatically",
         }
     },
     pl: {
@@ -118,6 +132,9 @@ export const translations = {
             no_active_requests: "Brak aktywnych wniosków",
             request_removed: "Wniosek usunięty",
             error: "Błąd",
+            export: "Eksportuj",
+            export_schedule: "Grafik Miesięczny (Poziomo)",
+            export_timesheets: "Karty Czasu Pracy (Pionowo)",
         },
         stats: {
             title: "Statystyki Finansowe",
@@ -177,6 +194,17 @@ export const translations = {
             confirm_request: "Wyślij wniosek",
             request_sent: "Wniosek wysłany na",
             Monday: "Poniedziałek", Tuesday: "Wtorek", Wednesday: "Środa", Thursday: "Czwartek", Friday: "Piątek", Saturday: "Sobota", Sunday: "Niedziela"
+        },
+        timesheet: {
+            title: "Rejestr godzin realizacji zlecenia",
+            subtitle: "Rozliczenie liczby godzin wykonywania usług do umowy zlecenia nr ____ w",
+            contractor: "Zleceniobiorca",
+            day: "Dzień miesiąca",
+            hours: "Liczba godzin realizacji zlecenia",
+            sign_contractor: "Podpis zleceniobiorcy",
+            sign_client: "Podpis zleceniodawcy",
+            total: "Łącznie",
+            generated: "Wygenerowano automatycznie",
         }
     },
     uk: {
@@ -207,6 +235,9 @@ export const translations = {
             no_active_requests: "Немає активних запитів",
             request_removed: "Запит видалено",
             error: "Помилка",
+            export: "Експорт",
+            export_schedule: "Графік на місяць (Альбомна)",
+            export_timesheets: "Табелі працівників (Книжкова)",
         },
         stats: {
             title: "Фінансова Статистика",
@@ -266,6 +297,17 @@ export const translations = {
             confirm_request: "Надіслати запит",
             request_sent: "Запит надіслано на",
             Monday: "Понеділок", Tuesday: "Вівторок", Wednesday: "Середа", Thursday: "Четвер", Friday: "П'ятниця", Saturday: "Субота", Sunday: "Неділя"
+        },
+        timesheet: {
+            title: "Реєстр годин виконання замовлення",
+            subtitle: "Розрахунок годин послуг до договору № ____ за",
+            contractor: "Виконавець (Працівник)",
+            day: "День місяця",
+            hours: "Кількість годин / Час",
+            sign_contractor: "Підпис виконавця",
+            sign_client: "Підпис замовника",
+            total: "Всього",
+            generated: "Згенеровано автоматично",
         }
     }
 };
