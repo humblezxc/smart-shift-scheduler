@@ -28,7 +28,9 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays }:
     const getTranslatedDay = (date: Date) => {
         const englishDay = format(date, "EEEE");
         const translated = t(`employee.${englishDay}`);
-        return translated.substring(0, 3);
+        return translated && translated !== `employee.${englishDay}`
+            ? translated.substring(0, 3)
+            : englishDay.substring(0, 3);
     };
 
     return (
@@ -43,15 +45,15 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays }:
             <div className="grid grid-cols-7 border-b bg-gray-50">
                 {days.map((day) => {
                     const dateStr = format(day, "yyyy-MM-dd");
-                    const isHoliday = holidays.some(h => h.date === dateStr);
+                    const hasHolidayRecord = holidays.some(h => h.date === dateStr);
                     const isSun = isSunday(day);
-                    const isSpecial = isHoliday || isSun;
+                    const isSpecial = isSun ? !hasHolidayRecord : hasHolidayRecord;
 
                     return (
                         <div
                             key={day.toString()}
                             onClick={() => handleDayClick(day)}
-                            title="Click to toggle Holiday status"
+                            title={isSpecial ? "Click to make working day" : "Click to make holiday"}
                             className={cn(
                                 "p-3 text-center border-r last:border-r-0 cursor-pointer transition-colors hover:bg-gray-100",
                                 isSpecial && "bg-red-50 hover:bg-red-100 text-red-600"
@@ -63,7 +65,8 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays }:
                             <div className={cn("font-bold text-lg", isSpecial && "text-red-700")}>
                                 {format(day, "d")}
                             </div>
-                            {isHoliday && (
+
+                            {isSpecial && (
                                 <div className="text-[10px] font-bold uppercase tracking-wider text-red-500 mt-1">
                                     {t("scheduler.holiday")}
                                 </div>

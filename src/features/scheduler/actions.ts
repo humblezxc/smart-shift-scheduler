@@ -78,16 +78,18 @@ export async function generateSchedule(dateStr?: string) {
     const todayAbsolute = startOfDay(new Date());
 
     const weekNumber = getISOWeek(startOfCurrentWeek);
+    const yearStart = format(startOfCurrentWeek, "yyyy-01-01");
+    const yearEnd = format(endOfCurrentWeek, "yyyy-12-31");
 
     const [timeOffsReq, holidaysReq, existingShiftsReq] = await Promise.all([
         supabase.from("time_off_requests").select("*").gte("date", startOfCurrentWeek.toISOString()).lte("date", endOfCurrentWeek.toISOString()),
-        supabase.from("holidays").select("*").gte("date", startOfCurrentWeek.toISOString()).lte("date", endOfCurrentWeek.toISOString()),
+        supabase.from("holidays").select("*").gte("date", yearStart).lte("date", yearEnd),
         supabase.from("shifts").select("*").gte("start_time", startOfCurrentWeek.toISOString()).lte("start_time", endOfDay(endOfCurrentWeek).toISOString())
     ]);
 
     const timeOffs = timeOffsReq.data || [];
     const holidays = holidaysReq.data || [];
-    const existingShifts = existingShiftsReq.data || [];
+    let existingShifts = existingShiftsReq.data || [];
 
     const owners = employees.filter(e => e.role === "owner");
     const managers = employees.filter(e => e.role === "manager");
@@ -102,7 +104,6 @@ export async function generateSchedule(dateStr?: string) {
 
     if (staff.length >= 2) {
         const isEvenWeek = weekNumber % 2 === 0;
-
         if (isEvenWeek) {
             primaryMorningWorker = staff[0];
             primaryEveningWorker = staff[1];
@@ -110,21 +111,18 @@ export async function generateSchedule(dateStr?: string) {
             primaryMorningWorker = staff[1];
             primaryEveningWorker = staff[0];
         }
-
         reservePool = staff.slice(2);
     } else {
         primaryMorningWorker = staff[0];
         primaryEveningWorker = staff[0];
     }
 
-    const newShiftsToInsert: { employee_id: number; start_time: string; end_time: string }[] = [];
+    const newShiftsToInsert: { employee_id: number; start_time: string; end_time: string, hourly_rate: number }[] = [];
 
     const isAvailable = (empId: number, dateStr: string, startTimeIso: string) => {
         if (timeOffs.some(t => t.employee_id === empId && t.date === dateStr)) return false;
-
         if (existingShifts.some(s => s.employee_id === empId && s.start_time.startsWith(dateStr))) return false;
         if (newShiftsToInsert.some(s => s.employee_id === empId && s.start_time.startsWith(dateStr))) return false;
-
         return true;
     };
 
@@ -144,9 +142,41 @@ export async function generateSchedule(dateStr?: string) {
         if (isBefore(currentDate, todayAbsolute)) continue;
 
         const isSun = isSunday(currentDate);
-        const isHoliday = holidays.some(h => h.date === dateStr);
-        const isSpecialDay = isSun || isHoliday;
+        const hasHolidayRecord = holidays.some(h => h.date === dateStr);
         const dayOfWeek = format(currentDate, 'iiii');
+
+        const isSpecialDay = isSun ? !hasHolidayRecord : hasHolidayRecord;
+        const idsToDelete: number[] = [];
+
+        existingShifts = existingShifts.filter(shift => {
+            if (!shift.start_time.startsWith(dateStr)) return true; // Не чіпаємо інші дні
+
+            const shiftDate = new Date(shift.start_time);
+            const h = shiftDate.getHours();
+            const m = shiftDate.getMinutes();
+
+            let shouldDelete = false;
+
+            if (isSpecialDay) {
+                if ((h === 5 && m === 30) || (h === 14 && m === 30)) {
+                    shouldDelete = true;
+                }
+            } else {
+                if ((h === 9 && m === 0) || (h === 15 && m === 0)) {
+                    shouldDelete = true;
+                }
+            }
+
+            if (shouldDelete) {
+                idsToDelete.push(shift.id);
+                return false;
+            }
+            return true;
+        });
+
+        if (idsToDelete.length > 0) {
+            await supabase.from("shifts").delete().in("id", idsToDelete);
+        }
 
         let slots: { start: string, end: string, type: 'morning' | 'evening' }[] = [];
 
@@ -223,33 +253,27 @@ export async function generateSchedule(dateStr?: string) {
     }
 
     revalidatePath("/");
-    return { success: true, count: newShiftsToInsert.length };
+    return { success: true, count: newShiftsToInsert.length + idsToDeleteCountPlaceholder(0) }; // Placeholder fix
 }
 
-export async function deleteShift(id: number) {
-    const { error } = await supabase
-        .from("shifts")
-        .delete()
-        .eq("id", id);
+function idsToDeleteCountPlaceholder(n: number) { return n; }
 
+
+export async function deleteShift(id: number) {
+    const { error } = await supabase.from("shifts").delete().eq("id", id);
     if (error) {
         console.error("Delete Error:", error);
         return { error: "Could not delete shift" };
     }
-
     revalidatePath("/");
     return { success: true };
 }
 
 export async function updateShift(id: number, data: ShiftFormValues) {
     const result = shiftSchema.safeParse(data);
-
-    if (!result.success) {
-        return { error: "Validation failed" };
-    }
+    if (!result.success) return { error: "Validation failed" };
 
     const { date, start_time, end_time, employee_id } = result.data;
-
     const startDateTime = new Date(date);
     const [sh, sm] = start_time.split(":").map(Number);
     startDateTime.setHours(sh, sm, 0, 0);
@@ -271,7 +295,6 @@ export async function updateShift(id: number, data: ShiftFormValues) {
         console.error("Update Error:", error);
         return { error: "Could not update shift" };
     }
-
     revalidatePath("/");
     return { success: true };
 }
@@ -299,11 +322,11 @@ export async function getWeekStats(start: Date, end: Date) {
     shifts.forEach((shift) => {
         const start = new Date(shift.start_time).getTime();
         const end = new Date(shift.end_time).getTime();
-
         const durationHours = (end - start) / (1000 * 60 * 60);
 
-        // @ts-ignore
-        const rate = shift.employee?.hourly_rate || 0;
+        const employeeData = shift.employee;
+        const emp = Array.isArray(employeeData) ? employeeData[0] : employeeData;
+        const rate = (emp as any)?.hourly_rate || 0;
 
         totalHours += durationHours;
         totalCost += durationHours * rate;
@@ -316,31 +339,23 @@ export async function getWeekStats(start: Date, end: Date) {
     };
 }
 
-
 export async function createTimeOffRequest(data: z.infer<typeof timeOffSchema>) {
     const { employee_id, date, reason } = data;
-
     const { error } = await supabase.from("time_off_requests").insert({
         employee_id,
         date: format(date, "yyyy-MM-dd"),
         reason,
     });
-
     if (error) {
         console.error("Time Off Error:", error);
         return { error: "Failed to request time off" };
     }
-
     revalidatePath("/");
     return { success: true };
 }
 
 export async function deleteTimeOffRequest(id: number) {
-    const { error } = await supabase
-        .from("time_off_requests")
-        .delete()
-        .eq("id", id);
-
+    const { error } = await supabase.from("time_off_requests").delete().eq("id", id);
     if (error) return { error: "Failed" };
     revalidatePath("/");
     return { success: true };
@@ -348,9 +363,7 @@ export async function deleteTimeOffRequest(id: number) {
 
 export async function toggleHoliday(date: Date) {
     const dateStr = format(date, "yyyy-MM-dd");
-
     const { data } = await supabase.from("holidays").select("*").eq("date", dateStr).single();
-
     if (data) {
         await supabase.from("holidays").delete().eq("date", dateStr);
     } else {
@@ -371,7 +384,8 @@ export async function getDetailedStats(period: 'month' | 'all', date: Date) {
         id,
         first_name,
         last_name,
-        role
+        role,
+        hourly_rate
       )
     `);
 
@@ -397,16 +411,22 @@ export async function getDetailedStats(period: 'month' | 'all', date: Date) {
     let staffTotalEarned = 0;
 
     shifts.forEach((shift) => {
+        const employeeData = shift.employee;
+        const emp = Array.isArray(employeeData) ? employeeData[0] : employeeData;
+        const safeEmp = emp as any;
+
+        if (!safeEmp) return;
+
         const start = new Date(shift.start_time).getTime();
         const end = new Date(shift.end_time).getTime();
         const hours = (end - start) / (1000 * 60 * 60);
 
-        const rate = shift.hourly_rate ?? shift.employee?.hourly_rate ?? 0;
+        const rate = shift.hourly_rate ?? safeEmp.hourly_rate ?? 0;
         const earned = hours * rate;
 
-        const empId = shift.employee.id;
-        const empName = `${shift.employee.first_name} ${shift.employee.last_name}`;
-        const role = shift.employee.role;
+        const empId = safeEmp.id;
+        const empName = `${safeEmp.first_name} ${safeEmp.last_name}`;
+        const role = safeEmp.role;
 
         if (!statsByEmployee[empId]) {
             statsByEmployee[empId] = { name: empName, role, hours: 0, earned: 0 };
@@ -440,6 +460,5 @@ export async function getMonthShifts(date: Date) {
         console.error("Error fetching month shifts:", error);
         return [];
     }
-
     return data;
 }
