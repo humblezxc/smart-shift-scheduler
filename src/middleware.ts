@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+export const config = {
+    matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+};
+
 export function middleware(req: NextRequest) {
-    if (
-        req.nextUrl.pathname.startsWith("/_next") ||
-        req.nextUrl.pathname.startsWith("/api") ||
-        req.nextUrl.pathname.startsWith("/static") ||
-        req.nextUrl.pathname.includes(".")
-    ) {
+    if (req.nextUrl.pathname.startsWith("/s/")) {
         return NextResponse.next();
     }
 
-    if (req.nextUrl.pathname.startsWith("/s/")) {
+    if (process.env.ENABLE_AUTH !== "true") {
         return NextResponse.next();
     }
 
@@ -36,7 +35,3 @@ export function middleware(req: NextRequest) {
         },
     });
 }
-
-export const config = {
-    matcher: ["/:path*"],
-};
