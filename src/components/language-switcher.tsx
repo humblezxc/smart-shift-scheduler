@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useLanguage } from "@/context/language-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,16 +9,10 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Languages } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
-export function LanguageSwitcher() {
+function LanguageSwitcherContent() {
     const { language, setLanguage } = useLanguage();
-
-    const labels = {
-        en: "English",
-        pl: "Polski",
-        uk: "Українська"
-    };
 
     const flags = {
         en: "🇺🇸",
@@ -44,5 +39,17 @@ export function LanguageSwitcher() {
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
+    );
+}
+
+export function LanguageSwitcher() {
+    return (
+        <Suspense fallback={
+            <Button variant="ghost" size="icon" disabled>
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </Button>
+        }>
+            <LanguageSwitcherContent />
+        </Suspense>
     );
 }
