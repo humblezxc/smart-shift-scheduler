@@ -50,7 +50,7 @@ export function DashboardView({stats, currentDate, employees, timeOffs, shifts, 
                 </div>
             </header>
             <main className="flex-1 p-3 sm:p-6 grid grid-cols-1 md:grid-cols-[300px_1fr] gap-4 sm:gap-6">
-                <aside className="space-y-4 sm:space-y-6">
+                <aside className="space-y-4 sm:space-y-6 order-last md:order-first">
                     <Card>
                         <CardHeader className="p-4 sm:p-6">
                             <CardTitle className="text-base sm:text-lg">{t("common.schedule")}</CardTitle>
