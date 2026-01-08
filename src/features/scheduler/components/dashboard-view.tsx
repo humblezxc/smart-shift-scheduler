@@ -13,6 +13,7 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { useLanguage } from "@/context/language-context";
 import { Employee } from "@/types";
 import { ExportMenu } from "@/features/scheduler/components/export-menu";
+import { MobileNav } from "@/features/scheduler/components/mobile-nav";
 
 interface DashboardViewProps {
     stats: any;
@@ -29,57 +30,65 @@ export function DashboardView({stats, currentDate, employees, timeOffs, shifts, 
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
-            <header className="bg-white border-b h-16 flex items-center px-6 justify-between sticky top-0 z-10">
+            <header className="bg-white border-b h-16 flex items-center px-4 sm:px-6 justify-between sticky top-0 z-20 shadow-sm">
                 <div>
-                    <h1 className="text-xl font-bold tracking-tight text-gray-800">
+                    <h1 className="text-lg sm:text-xl font-bold tracking-tight text-gray-800 truncate max-w-[200px] sm:max-w-none">
                         {t("common.welcome")}
                     </h1>
                     <p className="text-xs text-gray-500 hidden sm:block">
                         {t("common.subtitle")}
                     </p>
                 </div>
-
-                <div className="flex gap-2 sm:gap-4 items-center">
+                <div className="hidden md:flex gap-2 sm:gap-4 items-center">
                     <LanguageSwitcher />
                     <AddEmployeeDialog />
                     <ExportMenu currentDate={currentDate} employees={employees} />
                     <GenerateButton />
                 </div>
+                <div className="md:hidden">
+                    <MobileNav currentDate={currentDate} employees={employees} />
+                </div>
             </header>
-            <main className="flex-1 p-6 grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6">
-                <aside className="space-y-6">
+            <main className="flex-1 p-3 sm:p-6 grid grid-cols-1 md:grid-cols-[300px_1fr] gap-4 sm:gap-6">
+                <aside className="space-y-4 sm:space-y-6">
                     <Card>
-                        <CardHeader>
-                            <CardTitle>{t("common.schedule")}</CardTitle>
+                        <CardHeader className="p-4 sm:p-6">
+                            <CardTitle className="text-base sm:text-lg">{t("common.schedule")}</CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="p-4 sm:p-6 pt-0">
                             <CalendarPicker />
                         </CardContent>
                     </Card>
+
                     <StatsCard stats={stats} />
+
                     <div className="h-[350px]">
                         <TimeOffList requests={timeOffs} />
                     </div>
 
                     <Card className="overflow-hidden">
-                        <CardHeader className="pb-2">
-                            <CardTitle>{t("common.staff")}</CardTitle>
+                        <CardHeader className="pb-2 p-4 sm:p-6">
+                            <CardTitle className="text-base sm:text-lg">{t("common.staff")}</CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
-                            <div className="scale-90 origin-top-left w-[110%]">
+                            <div className="sm:scale-90 sm:origin-top-left sm:w-[110%] w-full overflow-x-auto">
                                 <EmployeeList employees={employees} />
                             </div>
                         </CardContent>
                     </Card>
                 </aside>
-                <section className="space-y-6">
+                <section className="space-y-4 sm:space-y-6 overflow-hidden">
                     <WeekNavigation />
-                    <ScheduleGridClient
-                        initialShifts={shifts}
-                        employees={employees}
-                        days={days}
-                        holidays={holidays}
-                    />
+                    <div className="overflow-x-auto pb-2">
+                        <div className="min-w-[600px] md:min-w-0">
+                            <ScheduleGridClient
+                                initialShifts={shifts}
+                                employees={employees}
+                                days={days}
+                                holidays={holidays}
+                            />
+                        </div>
+                    </div>
                 </section>
             </main>
         </div>
