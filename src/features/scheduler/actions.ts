@@ -29,6 +29,8 @@ export async function getShiftsForWeek(startOfWeek: Date, endOfWeek: Date) {
     return data || [];
 }
 
+const POLAND_TIMEZONE = "+01:00";
+
 export async function createShift(data: ShiftFormValues) {
     const result = shiftSchema.safeParse(data);
 
@@ -37,14 +39,7 @@ export async function createShift(data: ShiftFormValues) {
     }
 
     const { date, start_time, end_time, employee_id } = result.data;
-
-    const startDateTime = new Date(date);
-    const [startHour, startMinute] = start_time.split(":").map(Number);
-    startDateTime.setHours(startHour, startMinute, 0, 0);
-
-    const endDateTime = new Date(date);
-    const [endHour, endMinute] = end_time.split(":").map(Number);
-    endDateTime.setHours(endHour, endMinute, 0, 0);
+    const dateStr = format(new Date(date), "yyyy-MM-dd");
 
     const { data: employee } = await supabase
         .from("employees")
@@ -54,8 +49,8 @@ export async function createShift(data: ShiftFormValues) {
 
     const { error } = await supabase.from("shifts").insert({
         employee_id,
-        start_time: startDateTime.toISOString(),
-        end_time: endDateTime.toISOString(),
+        start_time: `${dateStr}T${start_time}:00${POLAND_TIMEZONE}`,
+        end_time: `${dateStr}T${end_time}:00${POLAND_TIMEZONE}`,
         hourly_rate: employee?.hourly_rate || 0,
     });
 
@@ -149,7 +144,7 @@ export async function generateSchedule(dateStr?: string) {
         const idsToDelete: number[] = [];
 
         existingShifts = existingShifts.filter(shift => {
-            if (!shift.start_time.startsWith(dateStr)) return true; // Не чіпаємо інші дні
+            if (!shift.start_time.startsWith(dateStr)) return true;
 
             const shiftDate = new Date(shift.start_time);
             const h = shiftDate.getHours();
@@ -193,10 +188,9 @@ export async function generateSchedule(dateStr?: string) {
         }
 
         for (const slot of slots) {
-            const startDateTime = new Date(dateStr + "T" + slot.start + ":00");
-            const endDateTime = new Date(dateStr + "T" + slot.end + ":00");
-            const slotIso = startDateTime.toISOString();
-            const slotTimeMs = startDateTime.getTime();
+            const startIso = `${dateStr}T${slot.start}:00`;
+            const endIso = `${dateStr}T${slot.end}:00`;
+            const slotTimeMs = new Date(startIso).getTime();
 
             const isSlotTaken = existingShifts.some(s => {
                 const sTime = new Date(s.start_time).getTime();
@@ -214,33 +208,33 @@ export async function generateSchedule(dateStr?: string) {
 
             if (isSpecialDay) {
                 if (slot.type === 'morning') {
-                    assignedWorker = owners.find(o => isAvailable(o.id, dateStr, slotIso));
+                    assignedWorker = owners.find(o => isAvailable(o.id, dateStr, startIso));
                 } else {
-                    assignedWorker = managers.find(m => isAvailable(m.id, dateStr, slotIso));
+                    assignedWorker = managers.find(m => isAvailable(m.id, dateStr, startIso));
                     if (!assignedWorker) {
-                        assignedWorker = findWorker(primaryEveningWorker, [...reservePool, primaryMorningWorker], dateStr, slotIso);
+                        assignedWorker = findWorker(primaryEveningWorker, [...reservePool, primaryMorningWorker], dateStr, startIso);
                     }
                 }
             } else {
                 if (slot.type === 'morning') {
                     if (dayOfWeek === 'Saturday') {
-                        assignedWorker = managers.find(m => isAvailable(m.id, dateStr, slotIso));
+                        assignedWorker = managers.find(m => isAvailable(m.id, dateStr, startIso));
                         if (!assignedWorker) {
-                            assignedWorker = findWorker(primaryMorningWorker, [...reservePool, primaryEveningWorker], dateStr, slotIso);
+                            assignedWorker = findWorker(primaryMorningWorker, [...reservePool, primaryEveningWorker], dateStr, startIso);
                         }
                     } else {
-                        assignedWorker = findWorker(primaryMorningWorker, [...reservePool, primaryEveningWorker], dateStr, slotIso);
+                        assignedWorker = findWorker(primaryMorningWorker, [...reservePool, primaryEveningWorker], dateStr, startIso);
                     }
                 } else {
-                    assignedWorker = findWorker(primaryEveningWorker, [...reservePool, primaryMorningWorker], dateStr, slotIso);
+                    assignedWorker = findWorker(primaryEveningWorker, [...reservePool, primaryMorningWorker], dateStr, startIso);
                 }
             }
 
             if (assignedWorker) {
                 newShiftsToInsert.push({
                     employee_id: assignedWorker.id,
-                    start_time: startDateTime.toISOString(),
-                    end_time: endDateTime.toISOString(),
+                    start_time: `${startIso}${POLAND_TIMEZONE}`,
+                    end_time: `${endIso}${POLAND_TIMEZONE}`,
                     hourly_rate: assignedWorker.hourly_rate || 0
                 });
             }
@@ -253,7 +247,7 @@ export async function generateSchedule(dateStr?: string) {
     }
 
     revalidatePath("/");
-    return { success: true, count: newShiftsToInsert.length + idsToDeleteCountPlaceholder(0) }; // Placeholder fix
+    return { success: true, count: newShiftsToInsert.length + idsToDeleteCountPlaceholder(0) };
 }
 
 function idsToDeleteCountPlaceholder(n: number) { return n; }
@@ -274,20 +268,14 @@ export async function updateShift(id: number, data: ShiftFormValues) {
     if (!result.success) return { error: "Validation failed" };
 
     const { date, start_time, end_time, employee_id } = result.data;
-    const startDateTime = new Date(date);
-    const [sh, sm] = start_time.split(":").map(Number);
-    startDateTime.setHours(sh, sm, 0, 0);
-
-    const endDateTime = new Date(date);
-    const [eh, em] = end_time.split(":").map(Number);
-    endDateTime.setHours(eh, em, 0, 0);
+    const dateStr = format(new Date(date), "yyyy-MM-dd");
 
     const { error } = await supabase
         .from("shifts")
         .update({
             employee_id,
-            start_time: startDateTime.toISOString(),
-            end_time: endDateTime.toISOString(),
+            start_time: `${dateStr}T${start_time}:00${POLAND_TIMEZONE}`,
+            end_time: `${dateStr}T${end_time}:00${POLAND_TIMEZONE}`,
         })
         .eq("id", id);
 

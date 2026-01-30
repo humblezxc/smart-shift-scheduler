@@ -12,12 +12,14 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Link2, Check } from "lucide-react";
+import { Link2, Check, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/context/language-context";
+import { EditEmployeeDialog } from "./edit-employee-dialog";
 
 export function EmployeeList({ employees }: { employees: Employee[] }) {
     const [copiedId, setCopiedId] = useState<number | null>(null);
+    const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
     const { t, language } = useLanguage();
 
     const copyLink = (token: string, id: number) => {
@@ -62,6 +64,14 @@ export function EmployeeList({ employees }: { employees: Employee[] }) {
                                 <Button
                                     variant="ghost"
                                     size="icon"
+                                    onClick={() => setEditingEmployee(employee)}
+                                    title={t("common.edit")}
+                                >
+                                    <Pencil className="h-4 w-4 text-gray-500" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={() =>
                                         // @ts-ignore
                                         copyLink(employee.share_token, employee.id)
@@ -79,6 +89,14 @@ export function EmployeeList({ employees }: { employees: Employee[] }) {
                     ))}
                 </TableBody>
             </Table>
+
+            {editingEmployee && (
+                <EditEmployeeDialog
+                    employee={editingEmployee}
+                    open={!!editingEmployee}
+                    onOpenChange={(open) => !open && setEditingEmployee(null)}
+                />
+            )}
         </div>
     );
 }

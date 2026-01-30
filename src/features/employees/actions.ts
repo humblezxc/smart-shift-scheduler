@@ -22,3 +22,41 @@ export async function createEmployee(data: EmployeeFormValues) {
 
     return { success: true };
 }
+
+export async function updateEmployee(id: number, data: EmployeeFormValues) {
+    const result = employeeSchema.safeParse(data);
+
+    if (!result.success) {
+        return { error: "Validation failed" };
+    }
+
+    const { error } = await supabase
+        .from("employees")
+        .update(result.data)
+        .eq("id", id);
+
+    if (error) {
+        console.error(error);
+        return { error: "Database error: Could not update employee" };
+    }
+
+    revalidatePath("/");
+
+    return { success: true };
+}
+
+export async function deleteEmployee(id: number) {
+    const { error } = await supabase
+        .from("employees")
+        .delete()
+        .eq("id", id);
+
+    if (error) {
+        console.error(error);
+        return { error: "Database error: Could not delete employee" };
+    }
+
+    revalidatePath("/");
+
+    return { success: true };
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { shiftSchema, ShiftFormValues } from "../schemas";
@@ -44,6 +44,7 @@ interface EditShiftDialogProps {
 
 export function EditShiftDialog({ shift, employees, open, onOpenChange }: EditShiftDialogProps) {
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const { t } = useLanguage();
 
     const form = useForm<ShiftFormValues>({
@@ -56,12 +57,25 @@ export function EditShiftDialog({ shift, employees, open, onOpenChange }: EditSh
         },
     });
 
+    useEffect(() => {
+        if (open && shift) {
+            form.reset({
+                employee_id: shift.employee_id,
+                date: new Date(shift.start_time),
+                start_time: format(new Date(shift.start_time), "HH:mm"),
+                end_time: format(new Date(shift.end_time), "HH:mm"),
+            });
+        }
+    }, [shift, open, form]);
+
     async function onSubmit(values: ShiftFormValues) {
+        setIsSubmitting(true);
         const res = await updateShift(shift.id, values);
+        setIsSubmitting(false);
         if (res.error) {
             toast.error(res.error);
         } else {
-            toast.success("Shift updated successfully");
+            toast.success(t("common.save") || "Shift updated successfully");
             onOpenChange(false);
         }
     }
@@ -155,8 +169,8 @@ export function EditShiftDialog({ shift, employees, open, onOpenChange }: EditSh
                                 <Trash2 className="w-4 h-4 mr-2" />
                                 {t("common.delete")}
                             </Button>
-                            <Button type="submit" className="flex-1">
-                                {t("forms.save_changes")}
+                            <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                                {isSubmitting ? (t("common.saving") || "Saving...") : t("forms.save_changes")}
                             </Button>
                         </DialogFooter>
                     </form>
