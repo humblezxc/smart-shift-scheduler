@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 export async function createSupabaseServerClient() {
     const cookieStore = await cookies();
@@ -49,15 +50,20 @@ export async function getUserOrganization() {
 export async function requireAuth() {
     const user = await getUser();
     if (!user) {
-        throw new Error('Unauthorized');
+        redirect('/login');
     }
     return user;
 }
 
 export async function requireOrganization() {
+    const user = await getUser();
+    if (!user) {
+        redirect('/login');
+    }
+
     const userOrg = await getUserOrganization();
     if (!userOrg) {
-        throw new Error('No organization found');
+        redirect('/login');
     }
     return userOrg;
 }

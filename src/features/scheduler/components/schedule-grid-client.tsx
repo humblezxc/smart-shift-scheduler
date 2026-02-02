@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { format, isSameDay, isSunday } from "date-fns";
+import { useRouter } from "next/navigation";
 import { ShiftCard } from "./shift-card";
 import { AddShiftDialog } from "./add-shift-dialog";
 import { EditShiftDialog } from "./edit-shift-dialog";
@@ -20,9 +21,11 @@ interface Props {
 export function ScheduleGridClient({ initialShifts, employees, days, holidays }: Props) {
     const [editingShift, setEditingShift] = useState<Shift | null>(null);
     const { t } = useLanguage();
+    const router = useRouter();
 
     const handleDayClick = async (date: Date) => {
         await toggleHoliday(date);
+        router.refresh();
     };
 
     const getTranslatedDay = (date: Date) => {
