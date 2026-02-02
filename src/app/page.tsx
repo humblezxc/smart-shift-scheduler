@@ -1,10 +1,14 @@
 import { getWeekRange, getWeekDays } from "@/lib/date-utils";
 import { getWeekStats, getShiftsForWeek } from "@/features/scheduler/actions";
-import { supabase } from "@/lib/supabase";
+import { getEmployees } from "@/features/employees/actions";
+import { createSupabaseServerClient, requireOrganization } from "@/lib/supabase-server";
 import { DashboardView } from "@/features/scheduler/components/dashboard-view";
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const params = await searchParams;
+  const userOrg = await requireOrganization();
+  const orgId = userOrg.organization_id;
+  const supabase = await createSupabaseServerClient();
 
   const currentDate = params.date
       ? new Date(params.date)
@@ -13,19 +17,19 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const { start, end } = getWeekRange(currentDate);
   const days = getWeekDays(start);
 
-  const [stats, employeesRes, timeOffsRes, shiftsRes, holidaysRes] = await Promise.all([
+  const [stats, employees, timeOffsRes, shiftsRes, holidaysRes] = await Promise.all([
     getWeekStats(start, end),
-    supabase.from("employees").select("*").order("first_name"),
+    getEmployees(),
     supabase
         .from("time_off_requests")
         .select(`*, employee:employees (first_name, last_name, role)`)
+        .eq("organization_id", orgId)
         .gte("date", start.toISOString())
         .order("date", { ascending: true }),
     getShiftsForWeek(start, end),
-    supabase.from("holidays").select("*").gte("date", start.toISOString()).lte("date", end.toISOString())
+    supabase.from("holidays").select("*").eq("organization_id", orgId).gte("date", start.toISOString()).lte("date", end.toISOString())
   ]);
 
-  const employees = employeesRes.data || [];
   const timeOffs = timeOffsRes.data || [];
   const shifts = shiftsRes || [];
   const holidays = holidaysRes.data || [];

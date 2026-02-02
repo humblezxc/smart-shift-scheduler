@@ -1,8 +1,31 @@
 "use server";
 
-import { supabase } from "@/lib/supabase";
+import { createSupabaseServerClient, requireOrganization } from "@/lib/supabase-server";
 import { employeeSchema, EmployeeFormValues } from "./schemas";
 import { revalidatePath } from "next/cache";
+
+async function getOrgId() {
+    const userOrg = await requireOrganization();
+    return userOrg.organization_id;
+}
+
+export async function getEmployees() {
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
+    const { data, error } = await supabase
+        .from("employees")
+        .select("*")
+        .eq("organization_id", orgId)
+        .order("first_name");
+
+    if (error) {
+        console.error("Error fetching employees:", error);
+        return [];
+    }
+
+    return data || [];
+}
 
 export async function createEmployee(data: EmployeeFormValues) {
     const result = employeeSchema.safeParse(data);
@@ -11,7 +34,13 @@ export async function createEmployee(data: EmployeeFormValues) {
         return { error: "Validation failed" };
     }
 
-    const { error } = await supabase.from("employees").insert(result.data);
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
+    const { error } = await supabase.from("employees").insert({
+        ...result.data,
+        organization_id: orgId,
+    });
 
     if (error) {
         console.error(error);
@@ -30,10 +59,14 @@ export async function updateEmployee(id: number, data: EmployeeFormValues) {
         return { error: "Validation failed" };
     }
 
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
     const { error } = await supabase
         .from("employees")
         .update(result.data)
-        .eq("id", id);
+        .eq("id", id)
+        .eq("organization_id", orgId);
 
     if (error) {
         console.error(error);
@@ -46,10 +79,14 @@ export async function updateEmployee(id: number, data: EmployeeFormValues) {
 }
 
 export async function deleteEmployee(id: number) {
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
     const { error } = await supabase
         .from("employees")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .eq("organization_id", orgId);
 
     if (error) {
         console.error(error);

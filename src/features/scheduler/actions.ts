@@ -1,13 +1,23 @@
 "use server";
 
-import { supabase } from "@/lib/supabase";
+import { createSupabaseServerClient, requireOrganization } from "@/lib/supabase-server";
 import { shiftSchema, ShiftFormValues, timeOffSchema } from "./schemas";
 import { revalidatePath } from "next/cache";
 import { addDays, startOfWeek, isSunday, format, startOfDay, endOfDay, isBefore, getISOWeek, startOfMonth, endOfMonth } from "date-fns";
 import { WEEK_STARTS_ON } from "@/lib/date-utils";
 import { z } from "zod";
 
+const POLAND_TIMEZONE = "+01:00";
+
+async function getOrgId() {
+    const userOrg = await requireOrganization();
+    return userOrg.organization_id;
+}
+
 export async function getShiftsForWeek(startOfWeek: Date, endOfWeek: Date) {
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
     const { data, error } = await supabase
         .from("shifts")
         .select(`
@@ -18,6 +28,7 @@ export async function getShiftsForWeek(startOfWeek: Date, endOfWeek: Date) {
         role
       )
     `)
+        .eq("organization_id", orgId)
         .gte("start_time", startOfDay(startOfWeek).toISOString())
         .lte("start_time", endOfDay(endOfWeek).toISOString());
 
@@ -29,14 +40,15 @@ export async function getShiftsForWeek(startOfWeek: Date, endOfWeek: Date) {
     return data || [];
 }
 
-const POLAND_TIMEZONE = "+01:00";
-
 export async function createShift(data: ShiftFormValues) {
     const result = shiftSchema.safeParse(data);
 
     if (!result.success) {
         return { error: "Validation failed" };
     }
+
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
 
     const { date, start_time, end_time, employee_id } = result.data;
     const dateStr = format(new Date(date), "yyyy-MM-dd");
@@ -45,10 +57,12 @@ export async function createShift(data: ShiftFormValues) {
         .from("employees")
         .select("hourly_rate")
         .eq("id", employee_id)
+        .eq("organization_id", orgId)
         .single();
 
     const { error } = await supabase.from("shifts").insert({
         employee_id,
+        organization_id: orgId,
         start_time: `${dateStr}T${start_time}:00${POLAND_TIMEZONE}`,
         end_time: `${dateStr}T${end_time}:00${POLAND_TIMEZONE}`,
         hourly_rate: employee?.hourly_rate || 0,
@@ -64,7 +78,14 @@ export async function createShift(data: ShiftFormValues) {
 }
 
 export async function generateSchedule(dateStr?: string) {
-    const { data: employees } = await supabase.from("employees").select("*");
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
+    const { data: employees } = await supabase
+        .from("employees")
+        .select("*")
+        .eq("organization_id", orgId);
+
     if (!employees || employees.length === 0) return { error: "No employees found" };
 
     const referenceDate = dateStr ? new Date(dateStr) : new Date();
@@ -77,9 +98,9 @@ export async function generateSchedule(dateStr?: string) {
     const yearEnd = format(endOfCurrentWeek, "yyyy-12-31");
 
     const [timeOffsReq, holidaysReq, existingShiftsReq] = await Promise.all([
-        supabase.from("time_off_requests").select("*").gte("date", startOfCurrentWeek.toISOString()).lte("date", endOfCurrentWeek.toISOString()),
-        supabase.from("holidays").select("*").gte("date", yearStart).lte("date", yearEnd),
-        supabase.from("shifts").select("*").gte("start_time", startOfCurrentWeek.toISOString()).lte("start_time", endOfDay(endOfCurrentWeek).toISOString())
+        supabase.from("time_off_requests").select("*").eq("organization_id", orgId).gte("date", startOfCurrentWeek.toISOString()).lte("date", endOfCurrentWeek.toISOString()),
+        supabase.from("holidays").select("*").eq("organization_id", orgId).gte("date", yearStart).lte("date", yearEnd),
+        supabase.from("shifts").select("*").eq("organization_id", orgId).gte("start_time", startOfCurrentWeek.toISOString()).lte("start_time", endOfDay(endOfCurrentWeek).toISOString())
     ]);
 
     const timeOffs = timeOffsReq.data || [];
@@ -112,7 +133,7 @@ export async function generateSchedule(dateStr?: string) {
         primaryEveningWorker = staff[0];
     }
 
-    const newShiftsToInsert: { employee_id: number; start_time: string; end_time: string, hourly_rate: number }[] = [];
+    const newShiftsToInsert: { employee_id: number; organization_id: string; start_time: string; end_time: string, hourly_rate: number }[] = [];
 
     const isAvailable = (empId: number, dateStr: string, startTimeIso: string) => {
         if (timeOffs.some(t => t.employee_id === empId && t.date === dateStr)) return false;
@@ -233,6 +254,7 @@ export async function generateSchedule(dateStr?: string) {
             if (assignedWorker) {
                 newShiftsToInsert.push({
                     employee_id: assignedWorker.id,
+                    organization_id: orgId,
                     start_time: `${startIso}${POLAND_TIMEZONE}`,
                     end_time: `${endIso}${POLAND_TIMEZONE}`,
                     hourly_rate: assignedWorker.hourly_rate || 0
@@ -247,14 +269,19 @@ export async function generateSchedule(dateStr?: string) {
     }
 
     revalidatePath("/");
-    return { success: true, count: newShiftsToInsert.length + idsToDeleteCountPlaceholder(0) };
+    return { success: true, count: newShiftsToInsert.length };
 }
 
-function idsToDeleteCountPlaceholder(n: number) { return n; }
-
-
 export async function deleteShift(id: number) {
-    const { error } = await supabase.from("shifts").delete().eq("id", id);
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
+    const { error } = await supabase
+        .from("shifts")
+        .delete()
+        .eq("id", id)
+        .eq("organization_id", orgId);
+
     if (error) {
         console.error("Delete Error:", error);
         return { error: "Could not delete shift" };
@@ -267,6 +294,9 @@ export async function updateShift(id: number, data: ShiftFormValues) {
     const result = shiftSchema.safeParse(data);
     if (!result.success) return { error: "Validation failed" };
 
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
     const { date, start_time, end_time, employee_id } = result.data;
     const dateStr = format(new Date(date), "yyyy-MM-dd");
 
@@ -277,7 +307,8 @@ export async function updateShift(id: number, data: ShiftFormValues) {
             start_time: `${dateStr}T${start_time}:00${POLAND_TIMEZONE}`,
             end_time: `${dateStr}T${end_time}:00${POLAND_TIMEZONE}`,
         })
-        .eq("id", id);
+        .eq("id", id)
+        .eq("organization_id", orgId);
 
     if (error) {
         console.error("Update Error:", error);
@@ -288,6 +319,9 @@ export async function updateShift(id: number, data: ShiftFormValues) {
 }
 
 export async function getWeekStats(start: Date, end: Date) {
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
     const { data: shifts, error } = await supabase
         .from("shifts")
         .select(`
@@ -297,6 +331,7 @@ export async function getWeekStats(start: Date, end: Date) {
         hourly_rate
       )
     `)
+        .eq("organization_id", orgId)
         .gte("start_time", start.toISOString())
         .lte("start_time", end.toISOString());
 
@@ -328,9 +363,13 @@ export async function getWeekStats(start: Date, end: Date) {
 }
 
 export async function createTimeOffRequest(data: z.infer<typeof timeOffSchema>) {
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
     const { employee_id, date, reason } = data;
     const { error } = await supabase.from("time_off_requests").insert({
         employee_id,
+        organization_id: orgId,
         date: format(date, "yyyy-MM-dd"),
         reason,
     });
@@ -343,24 +382,44 @@ export async function createTimeOffRequest(data: z.infer<typeof timeOffSchema>) 
 }
 
 export async function deleteTimeOffRequest(id: number) {
-    const { error } = await supabase.from("time_off_requests").delete().eq("id", id);
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
+    const { error } = await supabase
+        .from("time_off_requests")
+        .delete()
+        .eq("id", id)
+        .eq("organization_id", orgId);
+
     if (error) return { error: "Failed" };
     revalidatePath("/");
     return { success: true };
 }
 
 export async function toggleHoliday(date: Date) {
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
     const dateStr = format(date, "yyyy-MM-dd");
-    const { data } = await supabase.from("holidays").select("*").eq("date", dateStr).single();
+    const { data } = await supabase
+        .from("holidays")
+        .select("*")
+        .eq("date", dateStr)
+        .eq("organization_id", orgId)
+        .single();
+
     if (data) {
-        await supabase.from("holidays").delete().eq("date", dateStr);
+        await supabase.from("holidays").delete().eq("date", dateStr).eq("organization_id", orgId);
     } else {
-        await supabase.from("holidays").insert({ date: dateStr, name: "Holiday" });
+        await supabase.from("holidays").insert({ date: dateStr, name: "Holiday", organization_id: orgId });
     }
     revalidatePath("/");
 }
 
 export async function getDetailedStats(period: 'month' | 'all', date: Date) {
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
     let query = supabase
         .from("shifts")
         .select(`
@@ -375,7 +434,8 @@ export async function getDetailedStats(period: 'month' | 'all', date: Date) {
         role,
         hourly_rate
       )
-    `);
+    `)
+        .eq("organization_id", orgId);
 
     if (period === 'month') {
         const start = startOfMonth(date);
@@ -435,12 +495,16 @@ export async function getDetailedStats(period: 'month' | 'all', date: Date) {
 }
 
 export async function getMonthShifts(date: Date) {
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
     const start = startOfMonth(date);
     const end = endOfMonth(date);
 
     const { data, error } = await supabase
         .from("shifts")
         .select("*")
+        .eq("organization_id", orgId)
         .gte("start_time", start.toISOString())
         .lte("end_time", end.toISOString());
 

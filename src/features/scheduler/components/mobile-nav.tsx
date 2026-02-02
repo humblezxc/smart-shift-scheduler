@@ -7,6 +7,7 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { AddEmployeeDialog } from "@/features/employees/components/add-employee-dialog";
 import { ExportMenu } from "@/features/scheduler/components/export-menu";
 import { GenerateButton } from "@/features/scheduler/components/generate-button";
+import { LogoutButton } from "@/features/auth/components/logout-button";
 import { Employee } from "@/types";
 import { useLanguage } from "@/context/language-context";
 
@@ -39,12 +40,16 @@ export function MobileNav({ currentDate, employees }: MobileNavProps) {
                     <div className="space-y-4">
                         <div className="grid gap-2">
                             <label className="text-sm font-medium text-gray-500">Actions</label>
-                            <div className="flex flex-col gap-2 [&>button]:w-full [&>div]:w-full">
+                            <div className="flex flex-col gap-2 [&>button]:w-full [&>div]:w-full [&>form]:w-full [&>form>button]:w-full">
                                 <AddEmployeeDialog />
                                 <ExportMenu currentDate={currentDate} employees={employees} />
                                 <GenerateButton />
                             </div>
                         </div>
+                    </div>
+
+                    <div className="border-t pt-4 mt-4">
+                        <LogoutButton />
                     </div>
                 </div>
             </SheetContent>
