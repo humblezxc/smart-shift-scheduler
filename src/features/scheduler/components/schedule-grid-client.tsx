@@ -1,27 +1,26 @@
 "use client";
 
 import { useState, useId, useEffect } from "react";
-import { format, isSameDay, isSunday, parseISO } from "date-fns";
+import { format, isSameDay, isSunday } from "date-fns";
 import { useRouter } from "next/navigation";
 import {
     DndContext,
-    DragEndEvent,
     DragOverlay,
-    DragStartEvent,
     MouseSensor,
     TouchSensor,
     useSensor,
     useSensors,
-    useDroppable,
-    useDraggable,
     defaultDropAnimationSideEffects,
     DropAnimation,
 } from "@dnd-kit/core";
 import { ShiftCard } from "./shift-card";
 import { AddShiftDialog } from "./add-shift-dialog";
 import { EditShiftDialog } from "./edit-shift-dialog";
+import { DraggableShift } from "./draggable-shift";
+import { DroppableDay } from "./droppable-day";
+import { useShiftDrag } from "../hooks/use-shift-drag";
 import { Shift, Employee } from "@/types";
-import { toggleHoliday, moveShiftToDate, swapShiftTimes } from "../actions";
+import { toggleHoliday } from "../actions";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/context/language-context";
 
@@ -30,62 +29,6 @@ const dropAnimation: DropAnimation = {
         styles: { active: { opacity: "0.5" } },
     }),
 };
-
-function DraggableShift({ shift, onClick, isBeingDragged, disableDroppable }: { shift: Shift; onClick: () => void; isBeingDragged?: boolean; disableDroppable?: boolean }) {
-    const { attributes, listeners, setNodeRef: setDraggableRef, isDragging } = useDraggable({
-        id: `shift-${shift.id}`,
-        data: { shift, type: "shift" },
-    });
-
-    const { setNodeRef: setDroppableRef, isOver } = useDroppable({
-        id: `shift-drop-${shift.id}`,
-        data: { shift, type: "shift" },
-        disabled: disableDroppable || isDragging,
-    });
-
-    if (isBeingDragged) {
-        return <div className="h-0 overflow-hidden" />;
-    }
-
-    return (
-        <div
-            ref={(node) => {
-                setDraggableRef(node);
-                setDroppableRef(node);
-            }}
-            {...listeners}
-            {...attributes}
-            onClick={onClick}
-            className={cn(
-                "cursor-grab active:cursor-grabbing hover:opacity-90 transition-all",
-                isDragging && "opacity-0",
-                isOver && !disableDroppable && "ring-2 ring-blue-400 rounded-lg scale-105"
-            )}
-        >
-            <ShiftCard shift={shift} />
-        </div>
-    );
-}
-
-function DroppableDay({ day, children, isOver }: { day: Date; children: React.ReactNode; isOver?: boolean }) {
-    const dateStr = format(day, "yyyy-MM-dd");
-    const { setNodeRef, isOver: isCurrentlyOver } = useDroppable({
-        id: `day-${dateStr}`,
-        data: { date: dateStr },
-    });
-
-    return (
-        <div
-            ref={setNodeRef}
-            className={cn(
-                "p-2 border-r last:border-r-0 flex flex-col bg-white transition-colors min-h-[500px]",
-                (isOver || isCurrentlyOver) && "bg-blue-50 ring-2 ring-blue-300 ring-inset"
-            )}
-        >
-            {children}
-        </div>
-    );
-}
 
 interface Props {
     initialShifts: Shift[];
@@ -97,7 +40,6 @@ interface Props {
 export function ScheduleGridClient({ initialShifts, employees, days, holidays }: Props) {
     const [shifts, setShifts] = useState<Shift[]>(initialShifts);
     const [editingShift, setEditingShift] = useState<Shift | null>(null);
-    const [activeShift, setActiveShift] = useState<Shift | null>(null);
     const { t } = useLanguage();
     const router = useRouter();
     const dndContextId = useId();
@@ -105,6 +47,11 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays }:
     useEffect(() => {
         setShifts(initialShifts);
     }, [initialShifts]);
+
+    const { activeShift, handleDragStart, handleDragEnd } = useShiftDrag({
+        initialShifts: shifts,
+        onShiftsChange: setShifts,
+    });
 
     const sensors = useSensors(
         useSensor(MouseSensor, {
@@ -114,107 +61,6 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays }:
             activationConstraint: { delay: 200, tolerance: 5 },
         })
     );
-
-    const handleDragStart = (event: DragStartEvent) => {
-        const shift = event.active.data.current?.shift as Shift;
-        if (shift) {
-            setActiveShift(shift);
-        }
-    };
-
-    const handleDragEnd = async (event: DragEndEvent) => {
-        const { active, over } = event;
-
-        if (!over) {
-            setActiveShift(null);
-            return;
-        }
-
-        const draggedShift = active.data.current?.shift as Shift;
-        const overType = over.data.current?.type as string | undefined;
-        const targetShift = over.data.current?.shift as Shift | undefined;
-        const targetDate = over.data.current?.date as string | undefined;
-
-        if (!draggedShift) {
-            setActiveShift(null);
-            return;
-        }
-
-        if (overType === "shift" && targetShift && targetShift.id !== draggedShift.id) {
-            const draggedDate = format(new Date(draggedShift.start_time), "yyyy-MM-dd");
-            const targetDateStr = format(new Date(targetShift.start_time), "yyyy-MM-dd");
-
-            if (draggedDate === targetDateStr) {
-                const draggedStartTime = format(new Date(draggedShift.start_time), "HH:mm");
-                const draggedEndTime = format(new Date(draggedShift.end_time), "HH:mm");
-                const targetStartTime = format(new Date(targetShift.start_time), "HH:mm");
-                const targetEndTime = format(new Date(targetShift.end_time), "HH:mm");
-
-                setShifts((prev) =>
-                    prev.map((s) => {
-                        if (s.id === draggedShift.id) {
-                            return {
-                                ...s,
-                                start_time: `${draggedDate}T${targetStartTime}:00`,
-                                end_time: `${draggedDate}T${targetEndTime}:00`,
-                            };
-                        }
-                        if (s.id === targetShift.id) {
-                            return {
-                                ...s,
-                                start_time: `${targetDateStr}T${draggedStartTime}:00`,
-                                end_time: `${targetDateStr}T${draggedEndTime}:00`,
-                            };
-                        }
-                        return s;
-                    })
-                );
-
-                setTimeout(() => setActiveShift(null), 250);
-
-                const result = await swapShiftTimes(draggedShift.id, targetShift.id);
-                if (result.error) {
-                    setShifts(initialShifts);
-                }
-                return;
-            }
-        }
-
-        if (!targetDate) {
-            setActiveShift(null);
-            return;
-        }
-
-        const currentDate = format(new Date(draggedShift.start_time), "yyyy-MM-dd");
-        if (currentDate === targetDate) {
-            setActiveShift(null);
-            return;
-        }
-
-        const oldStart = new Date(draggedShift.start_time);
-        const oldEnd = new Date(draggedShift.end_time);
-        const startTime = format(oldStart, "HH:mm");
-        const endTime = format(oldEnd, "HH:mm");
-
-        setShifts((prev) =>
-            prev.map((s) =>
-                s.id === draggedShift.id
-                    ? {
-                          ...s,
-                          start_time: `${targetDate}T${startTime}:00`,
-                          end_time: `${targetDate}T${endTime}:00`,
-                      }
-                    : s
-            )
-        );
-
-        setTimeout(() => setActiveShift(null), 250);
-
-        const result = await moveShiftToDate(draggedShift.id, targetDate);
-        if (result.error) {
-            setShifts(initialShifts);
-        }
-    };
 
     const handleDayClick = async (date: Date) => {
         await toggleHoliday(date);
