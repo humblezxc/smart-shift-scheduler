@@ -8,6 +8,7 @@ import { AddEmployeeDialog } from "@/features/employees/components/add-employee-
 import { ExportMenu } from "@/features/scheduler/components/export-menu";
 import { GenerateButton } from "@/features/scheduler/components/generate-button";
 import { LogoutButton } from "@/features/auth/components/logout-button";
+import { SettingsButton } from "@/features/settings/components/settings-button";
 import { Employee } from "@/types";
 import { useLanguage } from "@/context/language-context";
 
@@ -44,6 +45,7 @@ export function MobileNav({ currentDate, employees }: MobileNavProps) {
                                 <AddEmployeeDialog />
                                 <ExportMenu currentDate={currentDate} employees={employees} />
                                 <GenerateButton />
+                                <SettingsButton />
                             </div>
                         </div>
                     </div>
