@@ -15,6 +15,7 @@ import { Employee } from "@/types";
 import { ExportMenu } from "@/features/scheduler/components/export-menu";
 import { MobileNav } from "@/features/scheduler/components/mobile-nav";
 import { LogoutButton } from "@/features/auth/components/logout-button";
+import { SettingsButton } from "@/features/settings/components/settings-button";
 
 interface DashboardViewProps {
     stats: any;
@@ -45,6 +46,7 @@ export function DashboardView({stats, currentDate, employees, timeOffs, shifts, 
                     <AddEmployeeDialog />
                     <ExportMenu currentDate={currentDate} employees={employees} />
                     <GenerateButton />
+                    <SettingsButton />
                     <LogoutButton />
                 </div>
                 <div className="md:hidden">

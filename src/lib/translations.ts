@@ -103,6 +103,20 @@ export const translations = {
             sign_client: "Client Signature",
             total: "Total",
             generated: "Generated automatically",
+        },
+        settings: {
+            title: "Settings",
+            general: "General Settings",
+            orgName: "Organization Name",
+            timezone: "Timezone",
+            currency: "Currency",
+            weekStartsOn: "Week Starts On",
+            save: "Save Changes",
+            shiftTemplates: "Shift Templates",
+            addTemplate: "Add Template",
+            templateName: "Template name",
+            customRoles: "Custom Roles",
+            newRole: "New role name",
         }
     },
     pl: {
@@ -207,6 +221,20 @@ export const translations = {
             sign_client: "Podpis zleceniodawcy",
             total: "Łącznie",
             generated: "Wygenerowano automatycznie",
+        },
+        settings: {
+            title: "Ustawienia",
+            general: "Ustawienia Ogólne",
+            orgName: "Nazwa Organizacji",
+            timezone: "Strefa Czasowa",
+            currency: "Waluta",
+            weekStartsOn: "Tydzień Zaczyna Się Od",
+            save: "Zapisz Zmiany",
+            shiftTemplates: "Szablony Zmian",
+            addTemplate: "Dodaj Szablon",
+            templateName: "Nazwa szablonu",
+            customRoles: "Własne Role",
+            newRole: "Nazwa nowej roli",
         }
     },
     uk: {
@@ -311,6 +339,20 @@ export const translations = {
             sign_client: "Підпис замовника",
             total: "Всього",
             generated: "Згенеровано автоматично",
+        },
+        settings: {
+            title: "Налаштування",
+            general: "Загальні Налаштування",
+            orgName: "Назва Організації",
+            timezone: "Часовий Пояс",
+            currency: "Валюта",
+            weekStartsOn: "Тиждень Починається З",
+            save: "Зберегти Зміни",
+            shiftTemplates: "Шаблони Змін",
+            addTemplate: "Додати Шаблон",
+            templateName: "Назва шаблону",
+            customRoles: "Власні Ролі",
+            newRole: "Назва нової ролі",
         }
     }
 };

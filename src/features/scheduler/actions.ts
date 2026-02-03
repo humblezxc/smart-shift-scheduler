@@ -318,6 +318,90 @@ export async function updateShift(id: number, data: ShiftFormValues) {
     return { success: true };
 }
 
+export async function moveShiftToDate(shiftId: number, newDate: string) {
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
+    const { data: shift } = await supabase
+        .from("shifts")
+        .select("*")
+        .eq("id", shiftId)
+        .eq("organization_id", orgId)
+        .single();
+
+    if (!shift) return { error: "Shift not found" };
+
+    const oldStart = new Date(shift.start_time);
+    const oldEnd = new Date(shift.end_time);
+    const startTime = format(oldStart, "HH:mm");
+    const endTime = format(oldEnd, "HH:mm");
+
+    const { error } = await supabase
+        .from("shifts")
+        .update({
+            start_time: `${newDate}T${startTime}:00${POLAND_TIMEZONE}`,
+            end_time: `${newDate}T${endTime}:00${POLAND_TIMEZONE}`,
+        })
+        .eq("id", shiftId)
+        .eq("organization_id", orgId);
+
+    if (error) {
+        console.error("Move Error:", error);
+        return { error: "Could not move shift" };
+    }
+
+    revalidatePath("/");
+    return { success: true };
+}
+
+export async function swapShiftTimes(shiftId1: number, shiftId2: number) {
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
+    const { data: shifts } = await supabase
+        .from("shifts")
+        .select("*")
+        .in("id", [shiftId1, shiftId2])
+        .eq("organization_id", orgId);
+
+    if (!shifts || shifts.length !== 2) return { error: "Shifts not found" };
+
+    const shift1 = shifts.find(s => s.id === shiftId1)!;
+    const shift2 = shifts.find(s => s.id === shiftId2)!;
+
+    const date1 = format(new Date(shift1.start_time), "yyyy-MM-dd");
+    const date2 = format(new Date(shift2.start_time), "yyyy-MM-dd");
+    const start1 = format(new Date(shift1.start_time), "HH:mm");
+    const end1 = format(new Date(shift1.end_time), "HH:mm");
+    const start2 = format(new Date(shift2.start_time), "HH:mm");
+    const end2 = format(new Date(shift2.end_time), "HH:mm");
+
+    const { error: error1 } = await supabase
+        .from("shifts")
+        .update({
+            start_time: `${date1}T${start2}:00${POLAND_TIMEZONE}`,
+            end_time: `${date1}T${end2}:00${POLAND_TIMEZONE}`,
+        })
+        .eq("id", shiftId1)
+        .eq("organization_id", orgId);
+
+    const { error: error2 } = await supabase
+        .from("shifts")
+        .update({
+            start_time: `${date2}T${start1}:00${POLAND_TIMEZONE}`,
+            end_time: `${date2}T${end1}:00${POLAND_TIMEZONE}`,
+        })
+        .eq("id", shiftId2)
+        .eq("organization_id", orgId);
+
+    if (error1 || error2) {
+        return { error: "Could not swap shifts" };
+    }
+
+    revalidatePath("/");
+    return { success: true };
+}
+
 export async function getWeekStats(start: Date, end: Date) {
     const supabase = await createSupabaseServerClient();
     const orgId = await getOrgId();
