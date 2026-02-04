@@ -14,9 +14,10 @@ interface ShiftTemplatesSectionProps {
     onAdd: (template: Omit<ShiftTemplate, "id">) => void;
     onDelete: (id: string) => void;
     isPending: boolean;
+    canEdit?: boolean;
 }
 
-export function ShiftTemplatesSection({ templates, onAdd, onDelete, isPending }: ShiftTemplatesSectionProps) {
+export function ShiftTemplatesSection({ templates, onAdd, onDelete, isPending, canEdit = false }: ShiftTemplatesSectionProps) {
     const { t } = useLanguage();
     const [newTemplate, setNewTemplate] = useState<Omit<ShiftTemplate, "id">>({
         name: "",
@@ -64,56 +65,60 @@ export function ShiftTemplatesSection({ templates, onAdd, onDelete, isPending }:
                                     {template.applicable_days?.join(", ") || "all days"}
                                 </p>
                             </div>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => template.id && onDelete(template.id)}
-                                disabled={isPending || !template.id}
-                            >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
+                            {canEdit && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => template.id && onDelete(template.id)}
+                                    disabled={isPending || !template.id}
+                                >
+                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                </Button>
+                            )}
                         </div>
                     ))}
                 </div>
 
-                <div className="border-t pt-4 space-y-3">
-                    <p className="text-sm font-medium text-gray-700">
-                        {t("settings.addTemplate") || "Add New Template"}
-                    </p>
-                    <div className="grid gap-3 sm:grid-cols-3">
-                        <Input
-                            placeholder={t("settings.templateName") || "Template name"}
-                            value={newTemplate.name}
-                            onChange={(e) => setNewTemplate((p) => ({ ...p, name: e.target.value }))}
-                        />
-                        <Input
-                            type="time"
-                            value={newTemplate.start_time}
-                            onChange={(e) => setNewTemplate((p) => ({ ...p, start_time: e.target.value }))}
-                        />
-                        <Input
-                            type="time"
-                            value={newTemplate.end_time}
-                            onChange={(e) => setNewTemplate((p) => ({ ...p, end_time: e.target.value }))}
-                        />
+                {canEdit && (
+                    <div className="border-t pt-4 space-y-3">
+                        <p className="text-sm font-medium text-gray-700">
+                            {t("settings.addTemplate") || "Add New Template"}
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                            <Input
+                                placeholder={t("settings.templateName") || "Template name"}
+                                value={newTemplate.name}
+                                onChange={(e) => setNewTemplate((p) => ({ ...p, name: e.target.value }))}
+                            />
+                            <Input
+                                type="time"
+                                value={newTemplate.start_time}
+                                onChange={(e) => setNewTemplate((p) => ({ ...p, start_time: e.target.value }))}
+                            />
+                            <Input
+                                type="time"
+                                value={newTemplate.end_time}
+                                onChange={(e) => setNewTemplate((p) => ({ ...p, end_time: e.target.value }))}
+                            />
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {APPLICABLE_DAYS.map((day) => (
+                                <Button
+                                    key={day}
+                                    size="sm"
+                                    variant={newTemplate.applicable_days.includes(day) ? "default" : "outline"}
+                                    onClick={() => toggleApplicableDay(day)}
+                                >
+                                    {day}
+                                </Button>
+                            ))}
+                        </div>
+                        <Button onClick={handleAdd} disabled={isPending || !newTemplate.name}>
+                            <Plus className="h-4 w-4 mr-2" />
+                            {t("settings.addTemplate") || "Add Template"}
+                        </Button>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        {APPLICABLE_DAYS.map((day) => (
-                            <Button
-                                key={day}
-                                size="sm"
-                                variant={newTemplate.applicable_days.includes(day) ? "default" : "outline"}
-                                onClick={() => toggleApplicableDay(day)}
-                            >
-                                {day}
-                            </Button>
-                        ))}
-                    </div>
-                    <Button onClick={handleAdd} disabled={isPending || !newTemplate.name}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        {t("settings.addTemplate") || "Add Template"}
-                    </Button>
-                </div>
+                )}
             </CardContent>
         </Card>
     );

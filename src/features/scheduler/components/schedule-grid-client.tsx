@@ -35,9 +35,10 @@ interface Props {
     employees: Employee[];
     days: Date[];
     holidays: any[];
+    canManage?: boolean;
 }
 
-export function ScheduleGridClient({ initialShifts, employees, days, holidays }: Props) {
+export function ScheduleGridClient({ initialShifts, employees, days, holidays, canManage = false }: Props) {
     const [shifts, setShifts] = useState<Shift[]>(initialShifts);
     const [editingShift, setEditingShift] = useState<Shift | null>(null);
     const { t } = useLanguage();
@@ -63,6 +64,7 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays }:
     );
 
     const handleDayClick = async (date: Date) => {
+        if (!canManage) return;
         await toggleHoliday(date);
         router.refresh();
     };
@@ -95,10 +97,12 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays }:
                         <div
                             key={day.toString()}
                             onClick={() => handleDayClick(day)}
-                            title={isSpecial ? "Click to make working day" : "Click to make holiday"}
+                            title={canManage ? (isSpecial ? "Click to make working day" : "Click to make holiday") : undefined}
                             className={cn(
-                                "p-3 text-center border-r last:border-r-0 cursor-pointer transition-colors hover:bg-gray-100",
-                                isSpecial && "bg-red-50 hover:bg-red-100 text-red-600"
+                                "p-3 text-center border-r last:border-r-0 transition-colors",
+                                canManage && "cursor-pointer hover:bg-gray-100",
+                                isSpecial && "bg-red-50 text-red-600",
+                                isSpecial && canManage && "hover:bg-red-100"
                             )}
                         >
                             <div className="font-medium text-sm opacity-70">
@@ -137,14 +141,15 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays }:
                                         <DraggableShift
                                             key={shift.id}
                                             shift={shift}
-                                            onClick={() => setEditingShift(shift)}
+                                            onClick={canManage ? () => setEditingShift(shift) : undefined}
                                             isBeingDragged={activeShift?.id === shift.id}
-                                            disableDroppable={activeShift?.id === shift.id}
+                                            disableDroppable={activeShift?.id === shift.id || !canManage}
+                                            disabled={!canManage}
                                         />
                                     ))}
                                 </div>
 
-                                <AddShiftDialog date={day} employees={employees} />
+                                {canManage && <AddShiftDialog date={day} employees={employees} />}
                             </DroppableDay>
                         );
                     })}

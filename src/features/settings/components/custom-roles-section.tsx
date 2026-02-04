@@ -14,9 +14,10 @@ interface CustomRolesSectionProps {
     onAdd: (role: string) => void;
     onDelete: (role: string) => void;
     isPending: boolean;
+    canEdit?: boolean;
 }
 
-export function CustomRolesSection({ customRoles, onAdd, onDelete, isPending }: CustomRolesSectionProps) {
+export function CustomRolesSection({ customRoles, onAdd, onDelete, isPending, canEdit = false }: CustomRolesSectionProps) {
     const { t } = useLanguage();
     const [newRole, setNewRole] = useState("");
 
@@ -46,29 +47,33 @@ export function CustomRolesSection({ customRoles, onAdd, onDelete, isPending }: 
                                 className="px-3 py-1 bg-blue-100 rounded-full text-sm flex items-center gap-2"
                             >
                                 {role}
-                                <button
-                                    onClick={() => onDelete(role)}
-                                    className="text-red-500 hover:text-red-700"
-                                    disabled={isPending}
-                                >
-                                    ×
-                                </button>
+                                {canEdit && (
+                                    <button
+                                        onClick={() => onDelete(role)}
+                                        className="text-red-500 hover:text-red-700"
+                                        disabled={isPending}
+                                    >
+                                        ×
+                                    </button>
+                                )}
                             </span>
                         ))}
                 </div>
 
-                <div className="flex gap-2">
-                    <Input
-                        placeholder={t("settings.newRole") || "New role name"}
-                        value={newRole}
-                        onChange={(e) => setNewRole(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                    />
-                    <Button onClick={handleAdd} disabled={isPending || !newRole.trim()}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        {t("common.add") || "Add"}
-                    </Button>
-                </div>
+                {canEdit && (
+                    <div className="flex gap-2">
+                        <Input
+                            placeholder={t("settings.newRole") || "New role name"}
+                            value={newRole}
+                            onChange={(e) => setNewRole(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                        />
+                        <Button onClick={handleAdd} disabled={isPending || !newRole.trim()}>
+                            <Plus className="h-4 w-4 mr-2" />
+                            {t("common.add") || "Add"}
+                        </Button>
+                    </div>
+                )}
             </CardContent>
         </Card>
     );

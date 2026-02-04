@@ -7,21 +7,23 @@ import { cn } from "@/lib/utils";
 
 interface DraggableShiftProps {
     shift: Shift;
-    onClick: () => void;
+    onClick?: () => void;
     isBeingDragged?: boolean;
     disableDroppable?: boolean;
+    disabled?: boolean;
 }
 
-export function DraggableShift({ shift, onClick, isBeingDragged, disableDroppable }: DraggableShiftProps) {
+export function DraggableShift({ shift, onClick, isBeingDragged, disableDroppable, disabled }: DraggableShiftProps) {
     const { attributes, listeners, setNodeRef: setDraggableRef, isDragging } = useDraggable({
         id: `shift-${shift.id}`,
         data: { shift, type: "shift" },
+        disabled,
     });
 
     const { setNodeRef: setDroppableRef, isOver } = useDroppable({
         id: `shift-drop-${shift.id}`,
         data: { shift, type: "shift" },
-        disabled: disableDroppable || isDragging,
+        disabled: disableDroppable || isDragging || disabled,
     });
 
     if (isBeingDragged) {
@@ -34,11 +36,12 @@ export function DraggableShift({ shift, onClick, isBeingDragged, disableDroppabl
                 setDraggableRef(node);
                 setDroppableRef(node);
             }}
-            {...listeners}
-            {...attributes}
+            {...(disabled ? {} : listeners)}
+            {...(disabled ? {} : attributes)}
             onClick={onClick}
             className={cn(
-                "cursor-grab active:cursor-grabbing hover:opacity-90 transition-all",
+                "transition-all",
+                !disabled && "cursor-grab active:cursor-grabbing hover:opacity-90",
                 isDragging && "opacity-0",
                 isOver && !disableDroppable && "ring-2 ring-blue-400 rounded-lg scale-105"
             )}

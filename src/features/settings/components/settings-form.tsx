@@ -22,9 +22,11 @@ import {
 interface Props {
     organization: { id: string; name: string } | null;
     settings: OrganizationSettings | null;
+    teamSection?: React.ReactNode;
+    canEdit?: boolean;
 }
 
-export function SettingsForm({ organization, settings }: Props) {
+export function SettingsForm({ organization, settings, teamSection, canEdit = false }: Props) {
     const { t } = useLanguage();
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
@@ -90,6 +92,7 @@ export function SettingsForm({ organization, settings }: Props) {
                     setWeekStartsOn={setWeekStartsOn}
                     onSave={handleSaveGeneral}
                     isPending={isPending}
+                    canEdit={canEdit}
                 />
 
                 <ShiftTemplatesSection
@@ -97,6 +100,7 @@ export function SettingsForm({ organization, settings }: Props) {
                     onAdd={handleAddTemplate}
                     onDelete={handleDeleteTemplate}
                     isPending={isPending}
+                    canEdit={canEdit}
                 />
 
                 <CustomRolesSection
@@ -104,7 +108,10 @@ export function SettingsForm({ organization, settings }: Props) {
                     onAdd={handleAddRole}
                     onDelete={handleDeleteRole}
                     isPending={isPending}
+                    canEdit={canEdit}
                 />
+
+                {teamSection}
             </main>
         </div>
     );

@@ -7,7 +7,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { DeleteTimeOffButton } from "./delete-time-off-button";
 import { useLanguage } from "@/context/language-context";
 
-export function TimeOffList({ requests }: { requests: any[] }) {
+interface TimeOffListProps {
+    requests: any[];
+    canManage?: boolean;
+}
+
+export function TimeOffList({ requests, canManage = false }: TimeOffListProps) {
     const { t } = useLanguage();
 
     return (
@@ -42,7 +47,7 @@ export function TimeOffList({ requests }: { requests: any[] }) {
                                         <div className="text-[10px] text-gray-500 italic">"{req.reason}"</div>
                                     )}
                                 </div>
-                                <DeleteTimeOffButton id={req.id} />
+                                {canManage && <DeleteTimeOffButton id={req.id} />}
                             </div>
                         ))}
                     </div>

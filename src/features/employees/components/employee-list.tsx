@@ -17,7 +17,12 @@ import { toast } from "sonner";
 import { useLanguage } from "@/context/language-context";
 import { EditEmployeeDialog } from "./edit-employee-dialog";
 
-export function EmployeeList({ employees }: { employees: Employee[] }) {
+interface EmployeeListProps {
+    employees: Employee[];
+    canManage?: boolean;
+}
+
+export function EmployeeList({ employees, canManage = false }: EmployeeListProps) {
     const [copiedId, setCopiedId] = useState<number | null>(null);
     const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
     const { t, language } = useLanguage();
@@ -61,14 +66,16 @@ export function EmployeeList({ employees }: { employees: Employee[] }) {
                                 </Badge>
                             </TableCell>
                             <TableCell className="text-right">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setEditingEmployee(employee)}
-                                    title={t("common.edit")}
-                                >
-                                    <Pencil className="h-4 w-4 text-gray-500" />
-                                </Button>
+                                {canManage && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setEditingEmployee(employee)}
+                                        title={t("common.edit")}
+                                    >
+                                        <Pencil className="h-4 w-4 text-gray-500" />
+                                    </Button>
+                                )}
                                 <Button
                                     variant="ghost"
                                     size="icon"

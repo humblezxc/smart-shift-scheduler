@@ -20,6 +20,7 @@ interface GeneralSettingsSectionProps {
     setWeekStartsOn: (day: number) => void;
     onSave: () => void;
     isPending: boolean;
+    canEdit?: boolean;
 }
 
 export function GeneralSettingsSection({
@@ -33,6 +34,7 @@ export function GeneralSettingsSection({
     setWeekStartsOn,
     onSave,
     isPending,
+    canEdit = false,
 }: GeneralSettingsSectionProps) {
     const { t } = useLanguage();
 
@@ -49,12 +51,13 @@ export function GeneralSettingsSection({
                             id="orgName"
                             value={orgName}
                             onChange={(e) => setOrgName(e.target.value)}
+                            disabled={!canEdit}
                         />
                     </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="timezone">{t("settings.timezone") || "Timezone"}</Label>
-                        <Select value={timezone} onValueChange={setTimezone}>
+                        <Select value={timezone} onValueChange={setTimezone} disabled={!canEdit}>
                             <SelectTrigger>
                                 <SelectValue />
                             </SelectTrigger>
@@ -70,7 +73,7 @@ export function GeneralSettingsSection({
 
                     <div className="space-y-2">
                         <Label htmlFor="currency">{t("settings.currency") || "Currency"}</Label>
-                        <Select value={currency} onValueChange={setCurrency}>
+                        <Select value={currency} onValueChange={setCurrency} disabled={!canEdit}>
                             <SelectTrigger>
                                 <SelectValue />
                             </SelectTrigger>
@@ -89,6 +92,7 @@ export function GeneralSettingsSection({
                         <Select
                             value={String(weekStartsOn)}
                             onValueChange={(v) => setWeekStartsOn(Number(v))}
+                            disabled={!canEdit}
                         >
                             <SelectTrigger>
                                 <SelectValue />
@@ -104,10 +108,12 @@ export function GeneralSettingsSection({
                     </div>
                 </div>
 
-                <Button onClick={onSave} disabled={isPending}>
-                    <Save className="h-4 w-4 mr-2" />
-                    {t("settings.save") || "Save Changes"}
-                </Button>
+                {canEdit && (
+                    <Button onClick={onSave} disabled={isPending}>
+                        <Save className="h-4 w-4 mr-2" />
+                        {t("settings.save") || "Save Changes"}
+                    </Button>
+                )}
             </CardContent>
         </Card>
     );

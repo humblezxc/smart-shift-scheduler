@@ -15,9 +15,10 @@ import { useLanguage } from "@/context/language-context";
 interface MobileNavProps {
     currentDate: Date;
     employees: Employee[];
+    canManage?: boolean;
 }
 
-export function MobileNav({ currentDate, employees }: MobileNavProps) {
+export function MobileNav({ currentDate, employees, canManage = false }: MobileNavProps) {
     const { t } = useLanguage();
 
     return (
@@ -42,9 +43,9 @@ export function MobileNav({ currentDate, employees }: MobileNavProps) {
                         <div className="grid gap-2">
                             <label className="text-sm font-medium text-gray-500">Actions</label>
                             <div className="flex flex-col gap-2 [&>button]:w-full [&>div]:w-full [&>form]:w-full [&>form>button]:w-full">
-                                <AddEmployeeDialog />
+                                {canManage && <AddEmployeeDialog />}
                                 <ExportMenu currentDate={currentDate} employees={employees} />
-                                <GenerateButton />
+                                {canManage && <GenerateButton />}
                                 <SettingsButton />
                             </div>
                         </div>
