@@ -13,7 +13,8 @@ export async function middleware(req: NextRequest) {
 
     if (req.nextUrl.pathname.startsWith("/login") ||
         req.nextUrl.pathname.startsWith("/signup") ||
-        req.nextUrl.pathname.startsWith("/auth")) {
+        req.nextUrl.pathname.startsWith("/auth") ||
+        req.nextUrl.pathname.startsWith("/invite")) {
         return NextResponse.next();
     }
 
