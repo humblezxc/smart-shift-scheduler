@@ -67,3 +67,41 @@ export async function requireOrganization() {
     }
     return userOrg;
 }
+
+export type UserRole = 'owner' | 'admin' | 'manager' | 'viewer';
+
+const ROLE_HIERARCHY: Record<UserRole, number> = {
+    owner: 4,
+    admin: 3,
+    manager: 2,
+    viewer: 1,
+};
+
+export function hasPermission(userRole: string, requiredRole: UserRole): boolean {
+    const userLevel = ROLE_HIERARCHY[userRole as UserRole] || 0;
+    const requiredLevel = ROLE_HIERARCHY[requiredRole];
+    return userLevel >= requiredLevel;
+}
+
+export async function requireRole(requiredRole: UserRole) {
+    const userOrg = await requireOrganization();
+
+    if (!hasPermission(userOrg.role, requiredRole)) {
+        return { error: `Permission denied. Required role: ${requiredRole}`, userOrg: null };
+    }
+
+    return { error: null, userOrg };
+}
+
+export async function checkRole(requiredRole: UserRole): Promise<{ allowed: boolean; userOrg: Awaited<ReturnType<typeof getUserOrganization>> }> {
+    const userOrg = await getUserOrganization();
+
+    if (!userOrg) {
+        return { allowed: false, userOrg: null };
+    }
+
+    return {
+        allowed: hasPermission(userOrg.role, requiredRole),
+        userOrg,
+    };
+}

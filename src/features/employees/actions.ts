@@ -1,6 +1,6 @@
 "use server";
 
-import { createSupabaseServerClient, requireOrganization } from "@/lib/supabase-server";
+import { createSupabaseServerClient, requireOrganization, requireRole } from "@/lib/supabase-server";
 import { employeeSchema, EmployeeFormValues } from "./schemas";
 import { revalidatePath } from "next/cache";
 
@@ -28,6 +28,10 @@ export async function getEmployees() {
 }
 
 export async function createEmployee(data: EmployeeFormValues) {
+    const { error: roleError, userOrg } = await requireRole('manager');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+    const orgId = userOrg.organization_id;
+
     const result = employeeSchema.safeParse(data);
 
     if (!result.success) {
@@ -35,7 +39,6 @@ export async function createEmployee(data: EmployeeFormValues) {
     }
 
     const supabase = await createSupabaseServerClient();
-    const orgId = await getOrgId();
 
     const { error } = await supabase.from("employees").insert({
         ...result.data,
@@ -53,6 +56,10 @@ export async function createEmployee(data: EmployeeFormValues) {
 }
 
 export async function updateEmployee(id: number, data: EmployeeFormValues) {
+    const { error: roleError, userOrg } = await requireRole('manager');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+    const orgId = userOrg.organization_id;
+
     const result = employeeSchema.safeParse(data);
 
     if (!result.success) {
@@ -60,7 +67,6 @@ export async function updateEmployee(id: number, data: EmployeeFormValues) {
     }
 
     const supabase = await createSupabaseServerClient();
-    const orgId = await getOrgId();
 
     const { error } = await supabase
         .from("employees")
@@ -79,8 +85,10 @@ export async function updateEmployee(id: number, data: EmployeeFormValues) {
 }
 
 export async function deleteEmployee(id: number) {
+    const { error: roleError, userOrg } = await requireRole('admin');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+    const orgId = userOrg.organization_id;
     const supabase = await createSupabaseServerClient();
-    const orgId = await getOrgId();
 
     const { error } = await supabase
         .from("employees")

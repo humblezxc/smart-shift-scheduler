@@ -1,6 +1,6 @@
 "use server";
 
-import { createSupabaseServerClient, requireOrganization } from "@/lib/supabase-server";
+import { createSupabaseServerClient, requireOrganization, requireRole } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 
 export interface ShiftTemplate {
@@ -56,7 +56,9 @@ export async function getOrganization() {
 }
 
 export async function updateOrganizationName(name: string) {
-    const userOrg = await requireOrganization();
+    const { error: roleError, userOrg } = await requireRole('admin');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+
     const supabase = await createSupabaseServerClient();
 
     const { error } = await supabase
@@ -73,7 +75,9 @@ export async function updateOrganizationName(name: string) {
 }
 
 export async function updateSettings(settings: Partial<Omit<OrganizationSettings, "organization_id">>) {
-    const userOrg = await requireOrganization();
+    const { error: roleError, userOrg } = await requireRole('admin');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+
     const supabase = await createSupabaseServerClient();
 
     const { error } = await supabase
@@ -91,7 +95,9 @@ export async function updateSettings(settings: Partial<Omit<OrganizationSettings
 }
 
 export async function addShiftTemplate(template: Omit<ShiftTemplate, "id">) {
-    const userOrg = await requireOrganization();
+    const { error: roleError, userOrg } = await requireRole('admin');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+
     const supabase = await createSupabaseServerClient();
 
     const { data: current } = await supabase
@@ -120,7 +126,9 @@ export async function addShiftTemplate(template: Omit<ShiftTemplate, "id">) {
 }
 
 export async function updateShiftTemplate(id: string, template: Partial<ShiftTemplate>) {
-    const userOrg = await requireOrganization();
+    const { error: roleError, userOrg } = await requireRole('admin');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+
     const supabase = await createSupabaseServerClient();
 
     const { data: current } = await supabase
@@ -147,7 +155,9 @@ export async function updateShiftTemplate(id: string, template: Partial<ShiftTem
 }
 
 export async function deleteShiftTemplate(id: string) {
-    const userOrg = await requireOrganization();
+    const { error: roleError, userOrg } = await requireRole('admin');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+
     const supabase = await createSupabaseServerClient();
 
     const { data: current } = await supabase
@@ -172,7 +182,9 @@ export async function deleteShiftTemplate(id: string) {
 }
 
 export async function addCustomRole(role: string) {
-    const userOrg = await requireOrganization();
+    const { error: roleError, userOrg } = await requireRole('admin');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+
     const supabase = await createSupabaseServerClient();
 
     const { data: current } = await supabase
@@ -200,7 +212,9 @@ export async function addCustomRole(role: string) {
 }
 
 export async function deleteCustomRole(role: string) {
-    const userOrg = await requireOrganization();
+    const { error: roleError, userOrg } = await requireRole('admin');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+
     const supabase = await createSupabaseServerClient();
 
     const { data: current } = await supabase

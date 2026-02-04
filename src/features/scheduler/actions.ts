@@ -1,6 +1,6 @@
 "use server";
 
-import { createSupabaseServerClient, requireOrganization } from "@/lib/supabase-server";
+import { createSupabaseServerClient, requireOrganization, requireRole } from "@/lib/supabase-server";
 import { shiftSchema, ShiftFormValues, timeOffSchema } from "./schemas";
 import { revalidatePath } from "next/cache";
 import { addDays, startOfWeek, isSunday, format, startOfDay, endOfDay, isBefore, getISOWeek, startOfMonth, endOfMonth } from "date-fns";
@@ -41,6 +41,10 @@ export async function getShiftsForWeek(startOfWeek: Date, endOfWeek: Date) {
 }
 
 export async function createShift(data: ShiftFormValues) {
+    const { error: roleError, userOrg } = await requireRole('manager');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+    const orgId = userOrg.organization_id;
+
     const result = shiftSchema.safeParse(data);
 
     if (!result.success) {
@@ -48,7 +52,6 @@ export async function createShift(data: ShiftFormValues) {
     }
 
     const supabase = await createSupabaseServerClient();
-    const orgId = await getOrgId();
 
     const { date, start_time, end_time, employee_id } = result.data;
     const dateStr = format(new Date(date), "yyyy-MM-dd");
@@ -78,8 +81,10 @@ export async function createShift(data: ShiftFormValues) {
 }
 
 export async function generateSchedule(dateStr?: string) {
+    const { error: roleError, userOrg } = await requireRole('manager');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+    const orgId = userOrg.organization_id;
     const supabase = await createSupabaseServerClient();
-    const orgId = await getOrgId();
 
     const { data: employees } = await supabase
         .from("employees")
@@ -273,8 +278,10 @@ export async function generateSchedule(dateStr?: string) {
 }
 
 export async function deleteShift(id: number) {
+    const { error: roleError, userOrg } = await requireRole('manager');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+    const orgId = userOrg.organization_id;
     const supabase = await createSupabaseServerClient();
-    const orgId = await getOrgId();
 
     const { error } = await supabase
         .from("shifts")
@@ -291,11 +298,14 @@ export async function deleteShift(id: number) {
 }
 
 export async function updateShift(id: number, data: ShiftFormValues) {
+    const { error: roleError, userOrg } = await requireRole('manager');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+    const orgId = userOrg.organization_id;
+
     const result = shiftSchema.safeParse(data);
     if (!result.success) return { error: "Validation failed" };
 
     const supabase = await createSupabaseServerClient();
-    const orgId = await getOrgId();
 
     const { date, start_time, end_time, employee_id } = result.data;
     const dateStr = format(new Date(date), "yyyy-MM-dd");
@@ -319,8 +329,10 @@ export async function updateShift(id: number, data: ShiftFormValues) {
 }
 
 export async function moveShiftToDate(shiftId: number, newDate: string) {
+    const { error: roleError, userOrg } = await requireRole('manager');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+    const orgId = userOrg.organization_id;
     const supabase = await createSupabaseServerClient();
-    const orgId = await getOrgId();
 
     const { data: shift } = await supabase
         .from("shifts")
@@ -355,8 +367,10 @@ export async function moveShiftToDate(shiftId: number, newDate: string) {
 }
 
 export async function swapShiftTimes(shiftId1: number, shiftId2: number) {
+    const { error: roleError, userOrg } = await requireRole('manager');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+    const orgId = userOrg.organization_id;
     const supabase = await createSupabaseServerClient();
-    const orgId = await getOrgId();
 
     const { data: shifts } = await supabase
         .from("shifts")
@@ -447,8 +461,10 @@ export async function getWeekStats(start: Date, end: Date) {
 }
 
 export async function createTimeOffRequest(data: z.infer<typeof timeOffSchema>) {
+    const { error: roleError, userOrg } = await requireRole('manager');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+    const orgId = userOrg.organization_id;
     const supabase = await createSupabaseServerClient();
-    const orgId = await getOrgId();
 
     const { employee_id, date, reason } = data;
     const { error } = await supabase.from("time_off_requests").insert({
@@ -466,8 +482,10 @@ export async function createTimeOffRequest(data: z.infer<typeof timeOffSchema>) 
 }
 
 export async function deleteTimeOffRequest(id: number) {
+    const { error: roleError, userOrg } = await requireRole('manager');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+    const orgId = userOrg.organization_id;
     const supabase = await createSupabaseServerClient();
-    const orgId = await getOrgId();
 
     const { error } = await supabase
         .from("time_off_requests")
@@ -481,8 +499,10 @@ export async function deleteTimeOffRequest(id: number) {
 }
 
 export async function toggleHoliday(date: Date) {
+    const { error: roleError, userOrg } = await requireRole('admin');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+    const orgId = userOrg.organization_id;
     const supabase = await createSupabaseServerClient();
-    const orgId = await getOrgId();
 
     const dateStr = format(date, "yyyy-MM-dd");
     const { data } = await supabase
