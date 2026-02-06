@@ -1,28 +1,72 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useId, useEffect } from "react";
 import { format, isSameDay, isSunday } from "date-fns";
+import { useRouter } from "next/navigation";
+import {
+    DndContext,
+    DragOverlay,
+    MouseSensor,
+    TouchSensor,
+    useSensor,
+    useSensors,
+    defaultDropAnimationSideEffects,
+    DropAnimation,
+} from "@dnd-kit/core";
 import { ShiftCard } from "./shift-card";
 import { AddShiftDialog } from "./add-shift-dialog";
 import { EditShiftDialog } from "./edit-shift-dialog";
+import { DraggableShift } from "./draggable-shift";
+import { DroppableDay } from "./droppable-day";
+import { useShiftDrag } from "../hooks/use-shift-drag";
 import { Shift, Employee } from "@/types";
 import { toggleHoliday } from "../actions";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/context/language-context";
+
+const dropAnimation: DropAnimation = {
+    sideEffects: defaultDropAnimationSideEffects({
+        styles: { active: { opacity: "0.5" } },
+    }),
+};
 
 interface Props {
     initialShifts: Shift[];
     employees: Employee[];
     days: Date[];
     holidays: any[];
+    canManage?: boolean;
 }
 
-export function ScheduleGridClient({ initialShifts, employees, days, holidays }: Props) {
+export function ScheduleGridClient({ initialShifts, employees, days, holidays, canManage = false }: Props) {
+    const [shifts, setShifts] = useState<Shift[]>(initialShifts);
     const [editingShift, setEditingShift] = useState<Shift | null>(null);
     const { t } = useLanguage();
+    const router = useRouter();
+    const dndContextId = useId();
+
+    useEffect(() => {
+        setShifts(initialShifts);
+    }, [initialShifts]);
+
+    const { activeShift, handleDragStart, handleDragEnd } = useShiftDrag({
+        initialShifts: shifts,
+        onShiftsChange: setShifts,
+    });
+
+    const sensors = useSensors(
+        useSensor(MouseSensor, {
+            activationConstraint: { distance: 8 },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: { delay: 200, tolerance: 5 },
+        })
+    );
 
     const handleDayClick = async (date: Date) => {
+        if (!canManage) return;
         await toggleHoliday(date);
+        router.refresh();
     };
 
     const getTranslatedDay = (date: Date) => {
@@ -53,10 +97,12 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays }:
                         <div
                             key={day.toString()}
                             onClick={() => handleDayClick(day)}
-                            title={isSpecial ? "Click to make working day" : "Click to make holiday"}
+                            title={canManage ? (isSpecial ? "Click to make working day" : "Click to make holiday") : undefined}
                             className={cn(
-                                "p-3 text-center border-r last:border-r-0 cursor-pointer transition-colors hover:bg-gray-100",
-                                isSpecial && "bg-red-50 hover:bg-red-100 text-red-600"
+                                "p-3 text-center border-r last:border-r-0 transition-colors",
+                                canManage && "cursor-pointer hover:bg-gray-100",
+                                isSpecial && "bg-red-50 text-red-600",
+                                isSpecial && canManage && "hover:bg-red-100"
                             )}
                         >
                             <div className="font-medium text-sm opacity-70">
@@ -76,34 +122,47 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays }:
                 })}
             </div>
 
-            <div className="grid grid-cols-7 min-h-[500px]">
-                {days.map((day) => {
-                    const dayShifts = initialShifts.filter((shift) =>
-                        isSameDay(new Date(shift.start_time), day)
-                    );
+            <DndContext
+                id={dndContextId}
+                sensors={sensors}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+            >
+                <div className="grid grid-cols-7">
+                    {days.map((day) => {
+                        const dayShifts = shifts
+                            .filter((shift) => isSameDay(new Date(shift.start_time), day))
+                            .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
-                    return (
-                        <div
-                            key={day.toString()}
-                            className="p-2 border-r last:border-r-0 flex flex-col bg-white hover:bg-gray-50/30 transition-colors"
-                        >
-                            <div className="flex-1 space-y-2">
-                                {dayShifts.map((shift) => (
-                                    <div
-                                        key={shift.id}
-                                        onClick={() => setEditingShift(shift)}
-                                        className="cursor-pointer transition-transform active:scale-95 hover:opacity-90"
-                                    >
-                                        <ShiftCard shift={shift} />
-                                    </div>
-                                ))}
-                            </div>
+                        return (
+                            <DroppableDay key={day.toString()} day={day}>
+                                <div className="flex-1 space-y-2">
+                                    {dayShifts.map((shift) => (
+                                        <DraggableShift
+                                            key={shift.id}
+                                            shift={shift}
+                                            onClick={canManage ? () => setEditingShift(shift) : undefined}
+                                            isBeingDragged={activeShift?.id === shift.id}
+                                            disableDroppable={activeShift?.id === shift.id || !canManage}
+                                            disabled={!canManage}
+                                        />
+                                    ))}
+                                </div>
 
-                            <AddShiftDialog date={day} employees={employees} />
+                                {canManage && <AddShiftDialog date={day} employees={employees} />}
+                            </DroppableDay>
+                        );
+                    })}
+                </div>
+
+                <DragOverlay dropAnimation={dropAnimation}>
+                    {activeShift && (
+                        <div className="shadow-lg rounded-lg scale-105">
+                            <ShiftCard shift={activeShift} />
                         </div>
-                    );
-                })}
-            </div>
+                    )}
+                </DragOverlay>
+            </DndContext>
 
             {editingShift && (
                 <EditShiftDialog

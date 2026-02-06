@@ -9,9 +9,14 @@ export default async function EmployeeSchedulePage({ params, }: { params: Promis
         .from("employees")
         .select("*")
         .eq("share_token", token)
+        .eq("share_token_revoked", false)
         .single();
 
     if (!employee) {
+        return notFound();
+    }
+
+    if (employee.share_token_expires_at && new Date(employee.share_token_expires_at) < new Date()) {
         return notFound();
     }
 

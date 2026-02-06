@@ -14,6 +14,9 @@ import { useLanguage } from "@/context/language-context";
 import { Employee } from "@/types";
 import { ExportMenu } from "@/features/scheduler/components/export-menu";
 import { MobileNav } from "@/features/scheduler/components/mobile-nav";
+import { LogoutButton } from "@/features/auth/components/logout-button";
+import { SettingsButton } from "@/features/settings/components/settings-button";
+import { UserRole } from "@/lib/supabase-server";
 
 interface DashboardViewProps {
     stats: any;
@@ -23,10 +26,12 @@ interface DashboardViewProps {
     shifts: any[];
     holidays: any[];
     days: Date[];
+    userRole: UserRole;
 }
 
-export function DashboardView({stats, currentDate, employees, timeOffs, shifts, holidays, days}: DashboardViewProps) {
+export function DashboardView({stats, currentDate, employees, timeOffs, shifts, holidays, days, userRole}: DashboardViewProps) {
     const { t } = useLanguage();
+    const canManage = userRole === 'owner' || userRole === 'admin' || userRole === 'manager';
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -41,12 +46,14 @@ export function DashboardView({stats, currentDate, employees, timeOffs, shifts, 
                 </div>
                 <div className="hidden md:flex gap-2 sm:gap-4 items-center">
                     <LanguageSwitcher />
-                    <AddEmployeeDialog />
+                    {canManage && <AddEmployeeDialog />}
                     <ExportMenu currentDate={currentDate} employees={employees} />
-                    <GenerateButton />
+                    {canManage && <GenerateButton />}
+                    <SettingsButton />
+                    <LogoutButton />
                 </div>
                 <div className="md:hidden">
-                    <MobileNav currentDate={currentDate} employees={employees} />
+                    <MobileNav currentDate={currentDate} employees={employees} canManage={canManage} />
                 </div>
             </header>
             <main className="flex-1 p-3 sm:p-6 grid grid-cols-1 md:grid-cols-[300px_1fr] gap-4 sm:gap-6">
@@ -63,7 +70,7 @@ export function DashboardView({stats, currentDate, employees, timeOffs, shifts, 
                     <StatsCard stats={stats} />
 
                     <div className="h-[350px]">
-                        <TimeOffList requests={timeOffs} />
+                        <TimeOffList requests={timeOffs} canManage={canManage} />
                     </div>
 
                     <Card className="overflow-hidden">
@@ -72,7 +79,7 @@ export function DashboardView({stats, currentDate, employees, timeOffs, shifts, 
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="sm:scale-90 sm:origin-top-left sm:w-[110%] w-full overflow-x-auto">
-                                <EmployeeList employees={employees} />
+                                <EmployeeList employees={employees} canManage={canManage} />
                             </div>
                         </CardContent>
                     </Card>
@@ -86,6 +93,7 @@ export function DashboardView({stats, currentDate, employees, timeOffs, shifts, 
                                 employees={employees}
                                 days={days}
                                 holidays={holidays}
+                                canManage={canManage}
                             />
                         </div>
                     </div>
