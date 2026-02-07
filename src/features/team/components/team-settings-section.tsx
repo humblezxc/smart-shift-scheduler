@@ -11,10 +11,23 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useLanguage } from "@/context/language-context";
 import {
     createInvite,
     revokeInvite,
+    updateMemberRole,
+    removeMember,
     OrganizationInvite,
     TeamRole,
     InviteRole,
@@ -26,9 +39,10 @@ interface Props {
     invites: OrganizationInvite[];
     userRole: TeamRole | null;
     teamMembers: TeamMember[];
+    currentUserId?: string;
 }
 
-export function TeamSettingsSection({ invites, userRole, teamMembers }: Props) {
+export function TeamSettingsSection({ invites, userRole, teamMembers, currentUserId }: Props) {
     const { t } = useLanguage();
     const [isPending, startTransition] = useTransition();
     const [email, setEmail] = useState("");
@@ -39,6 +53,7 @@ export function TeamSettingsSection({ invites, userRole, teamMembers }: Props) {
     const [lastInviteUrl, setLastInviteUrl] = useState<string | null>(null);
 
     const canManageTeam = userRole === "owner" || userRole === "admin";
+    const isOwner = userRole === "owner";
 
     const getRoleIcon = (role: string) => {
         switch (role) {
@@ -73,6 +88,32 @@ export function TeamSettingsSection({ invites, userRole, teamMembers }: Props) {
             const result = await revokeInvite(id);
             if (result.error) {
                 setError(result.error);
+            }
+        });
+    };
+
+    const handleRoleChange = (userId: string, newRole: InviteRole) => {
+        setError(null);
+        setSuccess(null);
+        startTransition(async () => {
+            const result = await updateMemberRole(userId, newRole);
+            if (result.error) {
+                setError(result.error);
+            } else {
+                setSuccess(t("team.roleUpdated") || "Role updated successfully");
+            }
+        });
+    };
+
+    const handleRemoveMember = (userId: string) => {
+        setError(null);
+        setSuccess(null);
+        startTransition(async () => {
+            const result = await removeMember(userId);
+            if (result.error) {
+                setError(result.error);
+            } else {
+                setSuccess(t("team.memberRemoved") || "Member removed");
             }
         });
     };
@@ -124,70 +165,134 @@ export function TeamSettingsSection({ invites, userRole, teamMembers }: Props) {
                 </h2>
             </div>
 
-            {/* Team Members */}
+            {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm mb-4">
+                    {error}
+                </div>
+            )}
+
+            {success && (
+                <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded text-sm mb-4">
+                    <div className="flex items-center justify-between">
+                        <span>{success}</span>
+                        {lastInviteUrl && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleCopyLastUrl}
+                                className="ml-2"
+                            >
+                                {copiedId === "last" ? (
+                                    <Check className="h-4 w-4 text-green-600" />
+                                ) : (
+                                    <Copy className="h-4 w-4" />
+                                )}
+                            </Button>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {teamMembers.length > 0 && (
                 <div className="mb-6">
                     <h3 className="text-sm font-medium text-gray-700 mb-3">
                         {t("team.members") || "Team Members"} ({teamMembers.length})
                     </h3>
                     <div className="space-y-2">
-                        {teamMembers.map((member) => (
-                            <div
-                                key={member.user_id}
-                                className="flex items-center justify-between bg-gray-50 rounded-md px-3 py-2 text-sm"
-                            >
-                                <div className="flex items-center gap-3">
-                                    {getRoleIcon(member.role)}
-                                    <div>
-                                        <div className="font-medium text-gray-900">
-                                            {member.email}
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                            {formatRole(member.role)}
+                        {teamMembers.map((member) => {
+                            const isSelf = member.user_id === currentUserId;
+                            const isMemberOwner = member.role === "owner";
+                            const canEditMember = isOwner && !isMemberOwner && !isSelf;
+
+                            return (
+                                <div
+                                    key={member.user_id}
+                                    className="flex items-center justify-between bg-gray-50 rounded-md px-3 py-2 text-sm"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        {getRoleIcon(member.role)}
+                                        <div>
+                                            <div className="font-medium text-gray-900">
+                                                {member.email}
+                                                {isSelf && (
+                                                    <span className="text-xs text-gray-400 ml-1">
+                                                        ({t("team.you") || "you"})
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {!canEditMember && (
+                                                <div className="text-xs text-gray-500">
+                                                    {formatRole(member.role)}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
+
+                                    {canEditMember && (
+                                        <div className="flex items-center gap-2">
+                                            <Select
+                                                value={member.role}
+                                                onValueChange={(v) => handleRoleChange(member.user_id, v as InviteRole)}
+                                                disabled={isPending}
+                                            >
+                                                <SelectTrigger className="w-[120px] h-8 text-xs">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="admin">{formatRole("admin")}</SelectItem>
+                                                    <SelectItem value="manager">{formatRole("manager")}</SelectItem>
+                                                    <SelectItem value="viewer">{formatRole("viewer")}</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        disabled={isPending}
+                                                        title={t("team.removeMember") || "Remove member"}
+                                                    >
+                                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>
+                                                            {t("team.removeMember") || "Remove Member"}
+                                                        </AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            {t("team.confirmRemove") || `Are you sure you want to remove ${member.email} from the team? This action cannot be undone.`}
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>
+                                                            {t("common.cancel") || "Cancel"}
+                                                        </AlertDialogCancel>
+                                                        <AlertDialogAction
+                                                            onClick={() => handleRemoveMember(member.user_id)}
+                                                            className="bg-red-600 hover:bg-red-700"
+                                                        >
+                                                            {t("common.delete") || "Remove"}
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}
 
-            {/* Invite Form */}
             <form onSubmit={handleCreateInvite} className="space-y-4 mb-6">
                 <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
                     <UserPlus className="h-4 w-4" />
                     {t("team.inviteMember") || "Invite a new team member"}
                 </div>
-
-                {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
-                        {error}
-                    </div>
-                )}
-
-                {success && (
-                    <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded text-sm">
-                        <div className="flex items-center justify-between">
-                            <span>{success}</span>
-                            {lastInviteUrl && (
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={handleCopyLastUrl}
-                                    className="ml-2"
-                                >
-                                    {copiedId === "last" ? (
-                                        <Check className="h-4 w-4 text-green-600" />
-                                    ) : (
-                                        <Copy className="h-4 w-4" />
-                                    )}
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-[1fr,auto,auto] gap-3">
                     <div className="space-y-1">
@@ -236,7 +341,6 @@ export function TeamSettingsSection({ invites, userRole, teamMembers }: Props) {
                 </div>
             </form>
 
-            {/* Pending Invites */}
             {invites.length > 0 && (
                 <div className="border-t pt-4">
                     <h3 className="text-sm font-medium text-gray-700 mb-3">
@@ -286,7 +390,6 @@ export function TeamSettingsSection({ invites, userRole, teamMembers }: Props) {
                 </div>
             )}
 
-            {/* Role Descriptions */}
             <div className="border-t pt-4 mt-4">
                 <h3 className="text-sm font-medium text-gray-700 mb-2">
                     {t("team.rolePermissions") || "Role Permissions"}

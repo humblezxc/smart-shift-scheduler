@@ -43,7 +43,6 @@ export async function createInvite(formData: FormData) {
 
     const userOrg = await requireOrganization();
 
-    // Check if user has permission to invite
     if (!["owner", "admin"].includes(userOrg.role)) {
         return { error: "You don't have permission to invite team members" };
     }
@@ -51,7 +50,6 @@ export async function createInvite(formData: FormData) {
     const user = await getUser();
     const supabase = await createSupabaseServerClient();
 
-    // Check for existing pending invite
     const { data: existing } = await supabase
         .from("organization_invites")
         .select("id")
@@ -65,9 +63,6 @@ export async function createInvite(formData: FormData) {
     if (existing) {
         return { error: "An invite for this email is already pending" };
     }
-
-    // Check if user is already a member (need to look up by email in auth.users)
-    // For now, we'll let the accept flow handle this check
 
     const { data: invite, error } = await supabase
         .from("organization_invites")
@@ -87,7 +82,6 @@ export async function createInvite(formData: FormData) {
 
     revalidatePath("/settings");
 
-    // Return the invite URL
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
     return {
         success: true,
@@ -222,7 +216,6 @@ export async function acceptInviteExistingUser(token: string) {
 
     const supabase = await createSupabaseServerClient();
 
-    // Use the database function to handle the acceptance
     const { data, error } = await supabase
         .rpc("accept_invite", {
             invite_token: token,
@@ -259,20 +252,17 @@ export async function acceptInviteNewUser(formData: FormData) {
         return { error: result.error.issues[0].message };
     }
 
-    // Get invite details first
     const invite = await getInviteByToken(token);
     if (!invite || invite.status !== "valid") {
         return { error: `This invite is ${invite?.status || "invalid"}` };
     }
 
-    // Check email matches invite
     if (email.toLowerCase() !== invite.email.toLowerCase()) {
         return { error: "Email does not match the invite" };
     }
 
     const supabase = await createSupabaseServerClient();
 
-    // Create the user account
     const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -286,7 +276,6 @@ export async function acceptInviteNewUser(formData: FormData) {
         return { error: "Failed to create account" };
     }
 
-    // Accept the invite (this links user to org)
     const { data, error } = await supabase
         .rpc("accept_invite", {
             invite_token: token,
@@ -336,4 +325,92 @@ export async function listTeamMembers(): Promise<TeamMember[]> {
 export async function getCurrentUserRole(): Promise<TeamRole | null> {
     const userOrg = await getUserOrganization();
     return userOrg?.role as TeamRole || null;
+}
+
+export async function updateMemberRole(userId: string, newRole: InviteRole) {
+    const userOrg = await requireOrganization();
+
+    if (userOrg.role !== "owner") {
+        return { error: "Only the owner can change member roles" };
+    }
+
+    const currentUser = await getUser();
+    if (currentUser?.id === userId) {
+        return { error: "You cannot change your own role" };
+    }
+
+    const supabase = await createSupabaseServerClient();
+
+    const { data: target } = await supabase
+        .from("user_organizations")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("organization_id", userOrg.organization_id)
+        .single();
+
+    if (!target) {
+        return { error: "Member not found" };
+    }
+
+    if (target.role === "owner") {
+        return { error: "Cannot change the role of another owner" };
+    }
+
+    const { error } = await supabase
+        .from("user_organizations")
+        .update({ role: newRole })
+        .eq("user_id", userId)
+        .eq("organization_id", userOrg.organization_id);
+
+    if (error) {
+        console.error("Update member role error:", error);
+        return { error: "Failed to update member role" };
+    }
+
+    revalidatePath("/settings");
+    return { success: true };
+}
+
+export async function removeMember(userId: string) {
+    const userOrg = await requireOrganization();
+
+    if (userOrg.role !== "owner") {
+        return { error: "Only the owner can remove members" };
+    }
+
+    const currentUser = await getUser();
+    if (currentUser?.id === userId) {
+        return { error: "You cannot remove yourself from the organization" };
+    }
+
+    const supabase = await createSupabaseServerClient();
+
+    const { data: target } = await supabase
+        .from("user_organizations")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("organization_id", userOrg.organization_id)
+        .single();
+
+    if (!target) {
+        return { error: "Member not found" };
+    }
+
+    if (target.role === "owner") {
+        return { error: "Cannot remove another owner" };
+    }
+
+    const { error } = await supabase
+        .from("user_organizations")
+        .delete()
+        .eq("user_id", userId)
+        .eq("organization_id", userOrg.organization_id);
+
+    if (error) {
+        console.error("Remove member error:", error);
+        return { error: "Failed to remove member" };
+    }
+
+    revalidatePath("/settings");
+    return { success: true };
 }

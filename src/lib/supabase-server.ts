@@ -105,3 +105,14 @@ export async function checkRole(requiredRole: UserRole): Promise<{ allowed: bool
         userOrg,
     };
 }
+
+export async function checkOnboardingStatus(orgId: string): Promise<{ needsOnboarding: boolean }> {
+    const supabase = await createSupabaseServerClient();
+
+    const { count } = await supabase
+        .from('employees')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', orgId);
+
+    return { needsOnboarding: (count ?? 0) === 0 };
+}
