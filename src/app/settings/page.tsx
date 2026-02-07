@@ -2,14 +2,16 @@ import { getOrganization, getOrganizationSettings } from "@/features/settings/ac
 import { SettingsForm } from "@/features/settings/components/settings-form";
 import { listInvites, getCurrentUserRole, listTeamMembers } from "@/features/team/actions";
 import { TeamSettingsSection } from "@/features/team/components/team-settings-section";
+import { getUser } from "@/lib/supabase-server";
 
 export default async function SettingsPage() {
-    const [organization, settings, invites, userRole, teamMembers] = await Promise.all([
+    const [organization, settings, invites, userRole, teamMembers, user] = await Promise.all([
         getOrganization(),
         getOrganizationSettings(),
         listInvites(),
         getCurrentUserRole(),
         listTeamMembers(),
+        getUser(),
     ]);
 
     const canEditSettings = userRole === 'owner' || userRole === 'admin';
@@ -24,6 +26,7 @@ export default async function SettingsPage() {
                     invites={invites}
                     userRole={userRole}
                     teamMembers={teamMembers}
+                    currentUserId={user?.id}
                 />
             }
         />
