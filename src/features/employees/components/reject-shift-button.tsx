@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { createTimeOffRequest } from "@/features/scheduler/actions";
+import { format } from "date-fns";
+import { createPublicTimeOffRequest } from "@/features/employees/actions";
 import { Button } from "@/components/ui/button";
 import { XCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -21,18 +22,21 @@ import { useLanguage } from "@/context/language-context";
 interface Props {
     employeeId: number;
     date: Date;
+    shareToken?: string;
     label?: string;
 }
 
-export function RejectShiftButton({ employeeId, date, label }: Props) {
+export function RejectShiftButton({ employeeId, date, shareToken, label }: Props) {
     const [loading, setLoading] = useState(false);
     const { t } = useLanguage();
 
     async function handleReject() {
+        if (!shareToken) return;
         setLoading(true);
-        const res = await createTimeOffRequest({
+        const res = await createPublicTimeOffRequest({
             employee_id: employeeId,
-            date: date,
+            share_token: shareToken,
+            date: format(date, "yyyy-MM-dd"),
             reason: "Rejected assigned shift",
         });
         setLoading(false);

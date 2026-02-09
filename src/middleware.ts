@@ -15,7 +15,8 @@ export async function middleware(req: NextRequest) {
         req.nextUrl.pathname.startsWith("/signup") ||
         req.nextUrl.pathname.startsWith("/auth") ||
         req.nextUrl.pathname.startsWith("/invite") ||
-        req.nextUrl.pathname.startsWith("/onboarding")) {
+        req.nextUrl.pathname.startsWith("/onboarding") ||
+        req.nextUrl.pathname.startsWith("/setup-org")) {
         return NextResponse.next();
     }
 

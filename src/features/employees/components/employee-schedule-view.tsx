@@ -22,9 +22,10 @@ function getGoogleCalendarLink(shift: any, employeeName: string, location: strin
 interface Props {
     employee: any;
     shifts: any[];
+    shareToken?: string;
 }
 
-export function EmployeeScheduleView({ employee, shifts }: Props) {
+export function EmployeeScheduleView({ employee, shifts, shareToken }: Props) {
     const { t } = useLanguage();
 
     const translateDate = (date: Date) => {
@@ -50,7 +51,7 @@ export function EmployeeScheduleView({ employee, shifts }: Props) {
                     <p className="text-gray-500">{t("employee.upcoming_shifts")}</p>
                 </div>
                 <div className="flex justify-center pb-2">
-                    <RequestTimeOff employeeId={employee.id} label={t("employee.cant_work")} />
+                    <RequestTimeOff employeeId={employee.id} shareToken={shareToken} label={t("employee.cant_work")} />
                 </div>
                 <div className="space-y-4">
                     {!shifts || shifts.length === 0 ? (
@@ -95,6 +96,7 @@ export function EmployeeScheduleView({ employee, shifts }: Props) {
                                             <RejectShiftButton
                                                 employeeId={employee.id}
                                                 date={startDate}
+                                                shareToken={shareToken}
                                                 label={t("employee.reject_shift")}
                                             />
                                         </div>

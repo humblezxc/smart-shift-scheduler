@@ -30,5 +30,5 @@ export default async function EmployeeSchedulePage({ params, }: { params: Promis
         .gte("start_time", today.toISOString())
         .order("start_time", { ascending: true });
 
-    return <EmployeeScheduleView employee={employee} shifts={shifts || []} />;
+    return <EmployeeScheduleView employee={employee} shifts={shifts || []} shareToken={token} />;
 }

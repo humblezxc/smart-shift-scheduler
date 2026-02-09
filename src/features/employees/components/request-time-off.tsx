@@ -4,7 +4,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { Ban } from "lucide-react";
 import { toast } from "sonner";
-import { createTimeOffRequest } from "@/features/scheduler/actions";
+import { createPublicTimeOffRequest } from "@/features/employees/actions";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -15,19 +15,20 @@ import {
 } from "@/components/ui/popover";
 import { useLanguage } from "@/context/language-context";
 
-export function RequestTimeOff({ employeeId, label }: { employeeId: number, label?: string }) {
+export function RequestTimeOff({ employeeId, shareToken, label }: { employeeId: number; shareToken?: string; label?: string }) {
     const [date, setDate] = useState<Date>();
     const [loading, setLoading] = useState(false);
     const [open, setOpen] = useState(false);
     const { t } = useLanguage();
 
     async function handleRequest() {
-        if (!date) return;
+        if (!date || !shareToken) return;
         setLoading(true);
 
-        const res = await createTimeOffRequest({
+        const res = await createPublicTimeOffRequest({
             employee_id: employeeId,
-            date: date,
+            share_token: shareToken,
+            date: format(date, "yyyy-MM-dd"),
             reason: "Requested via link",
         });
 
