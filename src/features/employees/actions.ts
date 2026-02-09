@@ -1,5 +1,6 @@
 "use server";
 
+import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient, requireOrganization, requireRole } from "@/lib/supabase-server";
 import { employeeSchema, EmployeeFormValues } from "./schemas";
 import { revalidatePath } from "next/cache";
@@ -102,6 +103,38 @@ export async function deleteEmployee(id: number) {
     }
 
     revalidatePath("/");
+
+    return { success: true };
+}
+
+export async function createPublicTimeOffRequest(data: {
+    employee_id: number;
+    share_token: string;
+    date: string;
+    reason?: string;
+}) {
+    const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    const { data: result, error } = await supabase
+        .rpc("create_public_time_off_request", {
+            p_employee_id: data.employee_id,
+            p_share_token: data.share_token,
+            p_date: data.date,
+            p_reason: data.reason || "Requested via link",
+        })
+        .single<{ success: boolean; error?: string }>();
+
+    if (error) {
+        console.error("Public time off error:", error);
+        return { error: "Failed to request time off" };
+    }
+
+    if (!result?.success) {
+        return { error: result?.error || "Failed to request time off" };
+    }
 
     return { success: true };
 }
