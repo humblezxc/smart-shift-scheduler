@@ -40,11 +40,19 @@ export async function getUserOrganization() {
 
     const { data: userOrg } = await supabase
         .from('user_organizations')
-        .select('organization_id, role, organizations(id, name, slug)')
+        .select('organization_id, role')
         .eq('user_id', user.id)
         .single();
 
-    return userOrg;
+    if (!userOrg) return null;
+
+    const { data: org } = await supabase
+        .from('organizations')
+        .select('id, name, slug')
+        .eq('id', userOrg.organization_id)
+        .single();
+
+    return { ...userOrg, organizations: org };
 }
 
 export async function requireAuth() {
