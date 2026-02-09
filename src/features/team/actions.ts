@@ -329,42 +329,27 @@ export async function getCurrentUserRole(): Promise<TeamRole | null> {
 
 export async function updateMemberRole(userId: string, newRole: InviteRole) {
     const userOrg = await requireOrganization();
-
-    if (userOrg.role !== "owner") {
-        return { error: "Only the owner can change member roles" };
-    }
-
     const currentUser = await getUser();
-    if (currentUser?.id === userId) {
-        return { error: "You cannot change your own role" };
-    }
+    if (!currentUser) return { error: "Not authenticated" };
 
     const supabase = await createSupabaseServerClient();
 
-    const { data: target } = await supabase
-        .from("user_organizations")
-        .select("role")
-        .eq("user_id", userId)
-        .eq("organization_id", userOrg.organization_id)
-        .single();
-
-    if (!target) {
-        return { error: "Member not found" };
-    }
-
-    if (target.role === "owner") {
-        return { error: "Cannot change the role of another owner" };
-    }
-
-    const { error } = await supabase
-        .from("user_organizations")
-        .update({ role: newRole })
-        .eq("user_id", userId)
-        .eq("organization_id", userOrg.organization_id);
+    const { data, error } = await supabase
+        .rpc("update_member_role", {
+            caller_user_id: currentUser.id,
+            target_user_id: userId,
+            target_org_id: userOrg.organization_id,
+            new_role: newRole,
+        })
+        .single<{ success: boolean; error?: string }>();
 
     if (error) {
         console.error("Update member role error:", error);
         return { error: "Failed to update member role" };
+    }
+
+    if (!data?.success) {
+        return { error: data?.error || "Failed to update member role" };
     }
 
     revalidatePath("/settings");
@@ -373,42 +358,26 @@ export async function updateMemberRole(userId: string, newRole: InviteRole) {
 
 export async function removeMember(userId: string) {
     const userOrg = await requireOrganization();
-
-    if (userOrg.role !== "owner") {
-        return { error: "Only the owner can remove members" };
-    }
-
     const currentUser = await getUser();
-    if (currentUser?.id === userId) {
-        return { error: "You cannot remove yourself from the organization" };
-    }
+    if (!currentUser) return { error: "Not authenticated" };
 
     const supabase = await createSupabaseServerClient();
 
-    const { data: target } = await supabase
-        .from("user_organizations")
-        .select("role")
-        .eq("user_id", userId)
-        .eq("organization_id", userOrg.organization_id)
-        .single();
-
-    if (!target) {
-        return { error: "Member not found" };
-    }
-
-    if (target.role === "owner") {
-        return { error: "Cannot remove another owner" };
-    }
-
-    const { error } = await supabase
-        .from("user_organizations")
-        .delete()
-        .eq("user_id", userId)
-        .eq("organization_id", userOrg.organization_id);
+    const { data, error } = await supabase
+        .rpc("remove_org_member", {
+            caller_user_id: currentUser.id,
+            target_user_id: userId,
+            target_org_id: userOrg.organization_id,
+        })
+        .single<{ success: boolean; error?: string }>();
 
     if (error) {
         console.error("Remove member error:", error);
         return { error: "Failed to remove member" };
+    }
+
+    if (!data?.success) {
+        return { error: data?.error || "Failed to remove member" };
     }
 
     revalidatePath("/settings");

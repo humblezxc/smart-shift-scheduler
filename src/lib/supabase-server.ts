@@ -63,7 +63,7 @@ export async function requireOrganization() {
 
     const userOrg = await getUserOrganization();
     if (!userOrg) {
-        redirect('/login');
+        redirect('/setup-org');
     }
     return userOrg;
 }
@@ -109,10 +109,31 @@ export async function checkRole(requiredRole: UserRole): Promise<{ allowed: bool
 export async function checkOnboardingStatus(orgId: string): Promise<{ needsOnboarding: boolean }> {
     const supabase = await createSupabaseServerClient();
 
+    const { data: settings } = await supabase
+        .from('organization_settings')
+        .select('onboarding_completed')
+        .eq('organization_id', orgId)
+        .single();
+
+    if (settings?.onboarding_completed) {
+        return { needsOnboarding: false };
+    }
+
     const { count } = await supabase
         .from('employees')
         .select('*', { count: 'exact', head: true })
         .eq('organization_id', orgId);
 
     return { needsOnboarding: (count ?? 0) === 0 };
+}
+
+export async function completeOnboarding() {
+    const supabase = await createSupabaseServerClient();
+    const userOrg = await getUserOrganization();
+    if (!userOrg) return;
+
+    await supabase
+        .from('organization_settings')
+        .update({ onboarding_completed: true })
+        .eq('organization_id', userOrg.organization_id);
 }

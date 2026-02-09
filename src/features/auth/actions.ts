@@ -66,35 +66,16 @@ export async function signup(formData: FormData) {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "");
 
-    const { data: org, error: orgError } = await supabase
-        .from("organizations")
-        .insert({
-            name: organizationName,
-            slug: `${slug}-${Date.now()}`,
-        })
-        .select()
-        .single();
+    const { data: orgId, error: orgError } = await supabase
+        .rpc("create_organization_with_owner", {
+            org_name: organizationName,
+            org_slug: `${slug}-${Date.now()}`,
+            owner_user_id: authData.user.id,
+        });
 
     if (orgError) {
         console.error("Org creation error:", orgError);
         return { error: "Failed to create organization" };
-    }
-
-    await supabase
-        .from("organization_settings")
-        .insert({ organization_id: org.id });
-
-    const { error: linkError } = await supabase
-        .from("user_organizations")
-        .insert({
-            user_id: authData.user.id,
-            organization_id: org.id,
-            role: "owner",
-        });
-
-    if (linkError) {
-        console.error("Link error:", linkError);
-        return { error: "Failed to link user to organization" };
     }
 
     redirect("/");

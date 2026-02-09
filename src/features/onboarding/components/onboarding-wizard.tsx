@@ -13,8 +13,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useLanguage } from "@/context/language-context";
-import { updateSettings } from "@/features/settings/actions";
-import { addShiftTemplate } from "@/features/settings/actions";
+import { updateSettings, addShiftTemplate } from "@/features/settings/actions";
+import { finishOnboarding } from "@/features/onboarding/actions";
 import { createEmployee } from "@/features/employees/actions";
 import type { EmployeeFormValues } from "@/features/employees/schemas";
 import { Check, ChevronLeft, ChevronRight, SkipForward, Building2, Clock, Users, PartyPopper } from "lucide-react";
@@ -127,7 +127,10 @@ export function OnboardingWizard({ orgName }: OnboardingWizardProps) {
     };
 
     const handleFinish = () => {
-        router.push("/");
+        startTransition(async () => {
+            await finishOnboarding();
+            router.push("/");
+        });
     };
 
     return (
