@@ -27,9 +27,10 @@ interface DashboardViewProps {
     holidays: any[];
     days: Date[];
     userRole: UserRole;
+    weekStartsOn: 0 | 1 | 2 | 3 | 4 | 5 | 6;
 }
 
-export function DashboardView({stats, currentDate, employees, timeOffs, shifts, holidays, days, userRole}: DashboardViewProps) {
+export function DashboardView({stats, currentDate, employees, timeOffs, shifts, holidays, days, userRole, weekStartsOn}: DashboardViewProps) {
     const { t } = useLanguage();
     const canManage = userRole === 'owner' || userRole === 'admin' || userRole === 'manager';
 
@@ -63,7 +64,7 @@ export function DashboardView({stats, currentDate, employees, timeOffs, shifts, 
                             <CardTitle className="text-base sm:text-lg">{t("common.schedule")}</CardTitle>
                         </CardHeader>
                         <CardContent className="p-4 sm:p-6 pt-0">
-                            <CalendarPicker />
+                            <CalendarPicker weekStartsOn={weekStartsOn} />
                         </CardContent>
                     </Card>
 
@@ -85,7 +86,7 @@ export function DashboardView({stats, currentDate, employees, timeOffs, shifts, 
                     </Card>
                 </aside>
                 <section className="space-y-4 sm:space-y-6 overflow-hidden">
-                    <WeekNavigation />
+                    <WeekNavigation weekStartsOn={weekStartsOn} />
                     <div className="overflow-x-auto pb-2">
                         <div className="min-w-[600px] md:min-w-0">
                             <ScheduleGridClient

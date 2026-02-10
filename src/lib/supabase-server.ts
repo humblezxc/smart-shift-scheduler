@@ -135,6 +135,19 @@ export async function checkOnboardingStatus(orgId: string): Promise<{ needsOnboa
     return { needsOnboarding: (count ?? 0) === 0 };
 }
 
+export async function getOrgScheduleConfig(orgId: string) {
+    const supabase = await createSupabaseServerClient();
+    const { data } = await supabase
+        .from("organization_settings")
+        .select("timezone, week_starts_on")
+        .eq("organization_id", orgId)
+        .single();
+    return {
+        timezone: data?.timezone || "UTC",
+        weekStartsOn: (data?.week_starts_on ?? 1) as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+    };
+}
+
 export async function completeOnboarding() {
     const supabase = await createSupabaseServerClient();
     const userOrg = await getUserOrganization();

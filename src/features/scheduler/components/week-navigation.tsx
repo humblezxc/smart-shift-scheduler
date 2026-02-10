@@ -4,10 +4,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { format, addWeeks, subWeeks, startOfWeek, endOfWeek } from "date-fns";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { WEEK_STARTS_ON } from "@/lib/date-utils";
 import {useLanguage} from "@/context/language-context";
 
-export function WeekNavigation() {
+interface WeekNavigationProps {
+    weekStartsOn: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+}
+
+export function WeekNavigation({ weekStartsOn }: WeekNavigationProps) {
     const { t } = useLanguage();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -15,8 +18,8 @@ export function WeekNavigation() {
     const dateParam = searchParams.get("date");
     const currentDate = dateParam ? new Date(dateParam) : new Date();
 
-    const start = startOfWeek(currentDate, { weekStartsOn: WEEK_STARTS_ON });
-    const end = endOfWeek(currentDate, { weekStartsOn: WEEK_STARTS_ON });
+    const start = startOfWeek(currentDate, { weekStartsOn });
+    const end = endOfWeek(currentDate, { weekStartsOn });
 
     const handleNavigate = (newDate: Date) => {
         const dateString = format(newDate, "yyyy-MM-dd");
