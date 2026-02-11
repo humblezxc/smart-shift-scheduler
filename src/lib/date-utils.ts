@@ -1,10 +1,8 @@
 import { startOfWeek, endOfWeek, addDays, format } from "date-fns";
 
-export const WEEK_STARTS_ON = 1;
-
-export function getWeekRange(date: Date) {
-    const start = startOfWeek(date, { weekStartsOn: WEEK_STARTS_ON });
-    const end = endOfWeek(date, { weekStartsOn: WEEK_STARTS_ON });
+export function getWeekRange(date: Date, weekStartsOn: 0 | 1 | 2 | 3 | 4 | 5 | 6 = 1) {
+    const start = startOfWeek(date, { weekStartsOn });
+    const end = endOfWeek(date, { weekStartsOn });
     return { start, end };
 }
 

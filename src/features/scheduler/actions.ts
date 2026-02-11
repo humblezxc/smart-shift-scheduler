@@ -1,17 +1,30 @@
 "use server";
 
-import { createSupabaseServerClient, requireOrganization, requireRole } from "@/lib/supabase-server";
+import { createSupabaseServerClient, requireOrganization, requireRole, getOrgScheduleConfig } from "@/lib/supabase-server";
 import { shiftSchema, ShiftFormValues, timeOffSchema } from "./schemas";
 import { revalidatePath } from "next/cache";
 import { addDays, startOfWeek, isSunday, format, startOfDay, endOfDay, isBefore, getISOWeek, startOfMonth, endOfMonth } from "date-fns";
-import { WEEK_STARTS_ON } from "@/lib/date-utils";
+import { formatInTimeZone } from "date-fns-tz";
 import { z } from "zod";
-
-const POLAND_TIMEZONE = "+01:00";
 
 async function getOrgId() {
     const userOrg = await requireOrganization();
     return userOrg.organization_id;
+}
+
+async function getOrgTimezone(orgId: string): Promise<string> {
+    const { timezone } = await getOrgScheduleConfig(orgId);
+    return timezone;
+}
+
+function formatInTz(date: Date, fmt: string, tz: string): string {
+    return formatInTimeZone(date, tz, fmt);
+}
+
+function buildTimestamp(dateStr: string, timeStr: string, tz: string): string {
+    const noonRef = new Date(`${dateStr}T12:00:00Z`);
+    const offset = formatInTimeZone(noonRef, tz, "xxx");
+    return `${dateStr}T${timeStr}:00${offset}`;
 }
 
 export async function getShiftsForWeek(startOfWeek: Date, endOfWeek: Date) {
@@ -55,6 +68,7 @@ export async function createShift(data: ShiftFormValues) {
 
     const { date, start_time, end_time, employee_id } = result.data;
     const dateStr = format(new Date(date), "yyyy-MM-dd");
+    const tz = await getOrgTimezone(orgId);
 
     const { data: employee } = await supabase
         .from("employees")
@@ -66,8 +80,8 @@ export async function createShift(data: ShiftFormValues) {
     const { error } = await supabase.from("shifts").insert({
         employee_id,
         organization_id: orgId,
-        start_time: `${dateStr}T${start_time}:00${POLAND_TIMEZONE}`,
-        end_time: `${dateStr}T${end_time}:00${POLAND_TIMEZONE}`,
+        start_time: buildTimestamp(dateStr, start_time, tz),
+        end_time: buildTimestamp(dateStr, end_time, tz),
         hourly_rate: employee?.hourly_rate || 0,
     });
 
@@ -85,6 +99,7 @@ export async function generateSchedule(dateStr?: string) {
     if (roleError || !userOrg) return { error: roleError || "Not authorized" };
     const orgId = userOrg.organization_id;
     const supabase = await createSupabaseServerClient();
+    const { timezone: tz, weekStartsOn } = await getOrgScheduleConfig(orgId);
 
     const { data: employees } = await supabase
         .from("employees")
@@ -94,7 +109,7 @@ export async function generateSchedule(dateStr?: string) {
     if (!employees || employees.length === 0) return { error: "No employees found" };
 
     const referenceDate = dateStr ? new Date(dateStr) : new Date();
-    const startOfCurrentWeek = startOfWeek(referenceDate, { weekStartsOn: WEEK_STARTS_ON });
+    const startOfCurrentWeek = startOfWeek(referenceDate, { weekStartsOn });
     const endOfCurrentWeek = addDays(startOfCurrentWeek, 6);
     const todayAbsolute = startOfDay(new Date());
 
@@ -142,8 +157,8 @@ export async function generateSchedule(dateStr?: string) {
 
     const isAvailable = (empId: number, dateStr: string, startTimeIso: string) => {
         if (timeOffs.some(t => t.employee_id === empId && t.date === dateStr)) return false;
-        if (existingShifts.some(s => s.employee_id === empId && s.start_time.startsWith(dateStr))) return false;
-        if (newShiftsToInsert.some(s => s.employee_id === empId && s.start_time.startsWith(dateStr))) return false;
+        if (existingShifts.some(s => s.employee_id === empId && formatInTz(new Date(s.start_time), "yyyy-MM-dd", tz) === dateStr)) return false;
+        if (newShiftsToInsert.some(s => s.employee_id === empId && formatInTz(new Date(s.start_time), "yyyy-MM-dd", tz) === dateStr)) return false;
         return true;
     };
 
@@ -170,11 +185,11 @@ export async function generateSchedule(dateStr?: string) {
         const idsToDelete: number[] = [];
 
         existingShifts = existingShifts.filter(shift => {
-            if (!shift.start_time.startsWith(dateStr)) return true;
+            const shiftDateStr = formatInTz(new Date(shift.start_time), "yyyy-MM-dd", tz);
+            if (shiftDateStr !== dateStr) return true;
 
-            const shiftDate = new Date(shift.start_time);
-            const h = shiftDate.getHours();
-            const m = shiftDate.getMinutes();
+            const h = parseInt(formatInTz(new Date(shift.start_time), "H", tz), 10);
+            const m = parseInt(formatInTz(new Date(shift.start_time), "m", tz), 10);
 
             let shouldDelete = false;
 
@@ -214,15 +229,18 @@ export async function generateSchedule(dateStr?: string) {
         }
 
         for (const slot of slots) {
-            const startIso = `${dateStr}T${slot.start}:00`;
-            const endIso = `${dateStr}T${slot.end}:00`;
-            const slotTimeMs = new Date(startIso).getTime();
+            const slotTimestamp = buildTimestamp(dateStr, slot.start, tz);
+            const slotTimeMs = new Date(slotTimestamp).getTime();
 
             const isSlotTaken = existingShifts.some(s => {
+                const sDateStr = formatInTz(new Date(s.start_time), "yyyy-MM-dd", tz);
+                if (sDateStr !== dateStr) return false;
                 const sTime = new Date(s.start_time).getTime();
                 const diffHours = Math.abs(sTime - slotTimeMs) / (1000 * 60 * 60);
                 return diffHours < 3;
             }) || newShiftsToInsert.some(s => {
+                const sDateStr = formatInTz(new Date(s.start_time), "yyyy-MM-dd", tz);
+                if (sDateStr !== dateStr) return false;
                 const sTime = new Date(s.start_time).getTime();
                 const diffHours = Math.abs(sTime - slotTimeMs) / (1000 * 60 * 60);
                 return diffHours < 3;
@@ -234,25 +252,25 @@ export async function generateSchedule(dateStr?: string) {
 
             if (isSpecialDay) {
                 if (slot.type === 'morning') {
-                    assignedWorker = owners.find(o => isAvailable(o.id, dateStr, startIso));
+                    assignedWorker = owners.find(o => isAvailable(o.id, dateStr, slotTimestamp));
                 } else {
-                    assignedWorker = managers.find(m => isAvailable(m.id, dateStr, startIso));
+                    assignedWorker = managers.find(m => isAvailable(m.id, dateStr, slotTimestamp));
                     if (!assignedWorker) {
-                        assignedWorker = findWorker(primaryEveningWorker, [...reservePool, primaryMorningWorker], dateStr, startIso);
+                        assignedWorker = findWorker(primaryEveningWorker, [...reservePool, primaryMorningWorker], dateStr, slotTimestamp);
                     }
                 }
             } else {
                 if (slot.type === 'morning') {
                     if (dayOfWeek === 'Saturday') {
-                        assignedWorker = managers.find(m => isAvailable(m.id, dateStr, startIso));
+                        assignedWorker = managers.find(m => isAvailable(m.id, dateStr, slotTimestamp));
                         if (!assignedWorker) {
-                            assignedWorker = findWorker(primaryMorningWorker, [...reservePool, primaryEveningWorker], dateStr, startIso);
+                            assignedWorker = findWorker(primaryMorningWorker, [...reservePool, primaryEveningWorker], dateStr, slotTimestamp);
                         }
                     } else {
-                        assignedWorker = findWorker(primaryMorningWorker, [...reservePool, primaryEveningWorker], dateStr, startIso);
+                        assignedWorker = findWorker(primaryMorningWorker, [...reservePool, primaryEveningWorker], dateStr, slotTimestamp);
                     }
                 } else {
-                    assignedWorker = findWorker(primaryEveningWorker, [...reservePool, primaryMorningWorker], dateStr, startIso);
+                    assignedWorker = findWorker(primaryEveningWorker, [...reservePool, primaryMorningWorker], dateStr, slotTimestamp);
                 }
             }
 
@@ -260,8 +278,8 @@ export async function generateSchedule(dateStr?: string) {
                 newShiftsToInsert.push({
                     employee_id: assignedWorker.id,
                     organization_id: orgId,
-                    start_time: `${startIso}${POLAND_TIMEZONE}`,
-                    end_time: `${endIso}${POLAND_TIMEZONE}`,
+                    start_time: buildTimestamp(dateStr, slot.start, tz),
+                    end_time: buildTimestamp(dateStr, slot.end, tz),
                     hourly_rate: assignedWorker.hourly_rate || 0
                 });
             }
@@ -309,13 +327,14 @@ export async function updateShift(id: number, data: ShiftFormValues) {
 
     const { date, start_time, end_time, employee_id } = result.data;
     const dateStr = format(new Date(date), "yyyy-MM-dd");
+    const tz = await getOrgTimezone(orgId);
 
     const { error } = await supabase
         .from("shifts")
         .update({
             employee_id,
-            start_time: `${dateStr}T${start_time}:00${POLAND_TIMEZONE}`,
-            end_time: `${dateStr}T${end_time}:00${POLAND_TIMEZONE}`,
+            start_time: buildTimestamp(dateStr, start_time, tz),
+            end_time: buildTimestamp(dateStr, end_time, tz),
         })
         .eq("id", id)
         .eq("organization_id", orgId);
@@ -343,16 +362,15 @@ export async function moveShiftToDate(shiftId: number, newDate: string) {
 
     if (!shift) return { error: "Shift not found" };
 
-    const oldStart = new Date(shift.start_time);
-    const oldEnd = new Date(shift.end_time);
-    const startTime = format(oldStart, "HH:mm");
-    const endTime = format(oldEnd, "HH:mm");
+    const tz = await getOrgTimezone(orgId);
+    const startTime = formatInTz(new Date(shift.start_time), "HH:mm", tz);
+    const endTime = formatInTz(new Date(shift.end_time), "HH:mm", tz);
 
     const { error } = await supabase
         .from("shifts")
         .update({
-            start_time: `${newDate}T${startTime}:00${POLAND_TIMEZONE}`,
-            end_time: `${newDate}T${endTime}:00${POLAND_TIMEZONE}`,
+            start_time: buildTimestamp(newDate, startTime, tz),
+            end_time: buildTimestamp(newDate, endTime, tz),
         })
         .eq("id", shiftId)
         .eq("organization_id", orgId);
@@ -383,18 +401,19 @@ export async function swapShiftTimes(shiftId1: number, shiftId2: number) {
     const shift1 = shifts.find(s => s.id === shiftId1)!;
     const shift2 = shifts.find(s => s.id === shiftId2)!;
 
-    const date1 = format(new Date(shift1.start_time), "yyyy-MM-dd");
-    const date2 = format(new Date(shift2.start_time), "yyyy-MM-dd");
-    const start1 = format(new Date(shift1.start_time), "HH:mm");
-    const end1 = format(new Date(shift1.end_time), "HH:mm");
-    const start2 = format(new Date(shift2.start_time), "HH:mm");
-    const end2 = format(new Date(shift2.end_time), "HH:mm");
+    const tz = await getOrgTimezone(orgId);
+    const date1 = formatInTz(new Date(shift1.start_time), "yyyy-MM-dd", tz);
+    const date2 = formatInTz(new Date(shift2.start_time), "yyyy-MM-dd", tz);
+    const start1 = formatInTz(new Date(shift1.start_time), "HH:mm", tz);
+    const end1 = formatInTz(new Date(shift1.end_time), "HH:mm", tz);
+    const start2 = formatInTz(new Date(shift2.start_time), "HH:mm", tz);
+    const end2 = formatInTz(new Date(shift2.end_time), "HH:mm", tz);
 
     const { error: error1 } = await supabase
         .from("shifts")
         .update({
-            start_time: `${date1}T${start2}:00${POLAND_TIMEZONE}`,
-            end_time: `${date1}T${end2}:00${POLAND_TIMEZONE}`,
+            start_time: buildTimestamp(date1, start2, tz),
+            end_time: buildTimestamp(date1, end2, tz),
         })
         .eq("id", shiftId1)
         .eq("organization_id", orgId);
@@ -402,8 +421,8 @@ export async function swapShiftTimes(shiftId1: number, shiftId2: number) {
     const { error: error2 } = await supabase
         .from("shifts")
         .update({
-            start_time: `${date2}T${start1}:00${POLAND_TIMEZONE}`,
-            end_time: `${date2}T${end1}:00${POLAND_TIMEZONE}`,
+            start_time: buildTimestamp(date2, start1, tz),
+            end_time: buildTimestamp(date2, end1, tz),
         })
         .eq("id", shiftId2)
         .eq("organization_id", orgId);

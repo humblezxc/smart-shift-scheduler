@@ -34,7 +34,7 @@ export async function getOrganizationSettings(): Promise<OrganizationSettings | 
 
     return {
         organization_id: data.organization_id,
-        timezone: data.timezone || "Europe/Warsaw",
+        timezone: data.timezone || "UTC",
         currency: data.currency || "PLN",
         week_starts_on: data.week_starts_on ?? 1,
         shift_templates: data.shift_templates || [],
