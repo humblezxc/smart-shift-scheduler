@@ -16,7 +16,10 @@ export async function middleware(req: NextRequest) {
         req.nextUrl.pathname.startsWith("/auth") ||
         req.nextUrl.pathname.startsWith("/invite") ||
         req.nextUrl.pathname.startsWith("/onboarding") ||
-        req.nextUrl.pathname.startsWith("/setup-org")) {
+        req.nextUrl.pathname.startsWith("/setup-org") ||
+        req.nextUrl.pathname.startsWith("/forgot-password") ||
+        req.nextUrl.pathname.startsWith("/reset-password") ||
+        req.nextUrl.pathname.startsWith("/welcome")) {
         return NextResponse.next();
     }
 
@@ -73,7 +76,6 @@ export async function middleware(req: NextRequest) {
         }
     }
 
-    const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("redirect", req.nextUrl.pathname);
-    return NextResponse.redirect(loginUrl);
+    const welcomeUrl = new URL("/welcome", req.url);
+    return NextResponse.redirect(welcomeUrl);
 }
