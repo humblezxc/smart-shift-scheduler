@@ -36,6 +36,12 @@ yarn-error.log*
 # claude
 .claude/
 
+# supabase migrations (run manually on specific instances)
+supabase/migrations/
+
+# windows artifacts
+nul
+
 # vercel
 .vercel
 
