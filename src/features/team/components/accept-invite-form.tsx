@@ -51,11 +51,11 @@ export function AcceptInviteForm({ invite, token, mode, currentUserEmail }: Prop
     if (mode === "logged_in_wrong") {
         return (
             <div className="text-center space-y-4">
-                <p className="text-gray-600">
+                <p className="text-muted-foreground">
                     {t("team.inviteForDifferentEmail") ||
                         `This invite is for ${invite.email}, but you're logged in as ${currentUserEmail}.`}
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                     {t("team.logoutToAccept") ||
                         "Please log out and sign in with the correct email, or create a new account."}
                 </p>
@@ -71,12 +71,12 @@ export function AcceptInviteForm({ invite, token, mode, currentUserEmail }: Prop
     if (mode === "logged_in_correct") {
         return (
             <div className="space-y-4">
-                <p className="text-center text-gray-600">
+                <p className="text-center text-muted-foreground">
                     {t("team.joinAsRole") ||
                         `You've been invited to join as a ${invite.role}.`}
                 </p>
                 {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                    <div className="bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded">
                         {error}
                     </div>
                 )}
@@ -96,13 +96,13 @@ export function AcceptInviteForm({ invite, token, mode, currentUserEmail }: Prop
     // New user signup
     return (
         <form onSubmit={handleAcceptNew} className="space-y-4">
-            <p className="text-center text-gray-600 text-sm">
+            <p className="text-center text-muted-foreground text-sm">
                 {t("team.createAccountToJoin") ||
                     "Create an account to join the team."}
             </p>
 
             {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
+                <div className="bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded text-sm">
                     {error}
                 </div>
             )}
@@ -117,7 +117,7 @@ export function AcceptInviteForm({ invite, token, mode, currentUserEmail }: Prop
                     type="email"
                     value={invite.email}
                     readOnly
-                    className="bg-gray-50"
+                    className="bg-muted"
                 />
             </div>
 
@@ -141,9 +141,9 @@ export function AcceptInviteForm({ invite, token, mode, currentUserEmail }: Prop
                     : t("team.createAccountAndJoin") || "Create Account & Join"}
             </Button>
 
-            <p className="text-center text-sm text-gray-500">
+            <p className="text-center text-sm text-muted-foreground">
                 {t("team.alreadyHaveAccount") || "Already have an account?"}{" "}
-                <a href="/login" className="text-blue-600 hover:underline">
+                <a href="/login" className="text-primary hover:underline">
                     {t("common.login") || "Log in"}
                 </a>
             </p>

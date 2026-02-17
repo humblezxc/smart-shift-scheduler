@@ -134,7 +134,7 @@ export function OnboardingWizard({ orgName }: OnboardingWizardProps) {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
             <div className="w-full max-w-lg">
                 <div className="flex items-center justify-center gap-2 mb-8">
                     {STEPS.map((_, i) => (
@@ -145,15 +145,15 @@ export function OnboardingWizard({ orgName }: OnboardingWizardProps) {
                                     ? "w-8 bg-blue-600"
                                     : i < currentStep
                                         ? "w-2 bg-blue-400"
-                                        : "w-2 bg-gray-300"
+                                        : "w-2 bg-muted-foreground/30"
                             }`}
                         />
                     ))}
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border p-6 sm:p-8">
+                <div className="bg-card rounded-xl shadow-sm border p-6 sm:p-8">
                     {error && (
-                        <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm mb-4">
+                        <div className="bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-3 py-2 rounded text-sm mb-4">
                             {error}
                         </div>
                     )}
@@ -161,13 +161,13 @@ export function OnboardingWizard({ orgName }: OnboardingWizardProps) {
                     {step === "welcome" && (
                         <div className="text-center space-y-4">
                             <Building2 className="h-12 w-12 text-blue-600 mx-auto" />
-                            <h1 className="text-2xl font-bold text-gray-900">
+                            <h1 className="text-2xl font-bold text-foreground">
                                 {t("onboarding.welcomeTitle") || `Welcome to ${orgName}!`}
                             </h1>
-                            <p className="text-gray-600">
+                            <p className="text-muted-foreground">
                                 {t("onboarding.welcomeDesc") || "Let's set up your schedule in a few quick steps. You can always change these settings later."}
                             </p>
-                            <div className="text-sm text-gray-500 space-y-1 text-left bg-gray-50 rounded-lg p-4">
+                            <div className="text-sm text-muted-foreground space-y-1 text-left bg-muted rounded-lg p-4">
                                 <p className="flex items-center gap-2">
                                     <Clock className="h-4 w-4" />
                                     {t("onboarding.step1Desc") || "Configure your timezone and preferences"}
@@ -190,10 +190,10 @@ export function OnboardingWizard({ orgName }: OnboardingWizardProps) {
 
                     {step === "settings" && (
                         <div className="space-y-4">
-                            <h2 className="text-xl font-bold text-gray-900">
+                            <h2 className="text-xl font-bold text-foreground">
                                 {t("onboarding.settingsTitle") || "Organization Settings"}
                             </h2>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-muted-foreground">
                                 {t("onboarding.settingsDesc") || "Configure your basic preferences."}
                             </p>
 
@@ -261,23 +261,23 @@ export function OnboardingWizard({ orgName }: OnboardingWizardProps) {
 
                     {step === "templates" && (
                         <div className="space-y-4">
-                            <h2 className="text-xl font-bold text-gray-900">
+                            <h2 className="text-xl font-bold text-foreground">
                                 {t("onboarding.templatesTitle") || "Shift Templates"}
                             </h2>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-muted-foreground">
                                 {t("onboarding.templatesDesc") || "Set up default shift patterns. We'll create Morning (05:30-14:30) and Evening (14:30-23:00) templates for weekdays."}
                             </p>
 
-                            <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+                            <div className="bg-muted rounded-lg p-4 space-y-2 text-sm">
                                 <div className="flex justify-between">
                                     <span className="font-medium">{t("onboarding.morningShift") || "Morning"}</span>
-                                    <span className="text-gray-500">05:30 - 14:30</span>
+                                    <span className="text-muted-foreground">05:30 - 14:30</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="font-medium">{t("onboarding.eveningShift") || "Evening"}</span>
-                                    <span className="text-gray-500">14:30 - 23:00</span>
+                                    <span className="text-muted-foreground">14:30 - 23:00</span>
                                 </div>
-                                <p className="text-xs text-gray-400 pt-1">
+                                <p className="text-xs text-muted-foreground pt-1">
                                     {t("onboarding.templatesDays") || "Mon - Sat"}
                                 </p>
                             </div>
@@ -309,26 +309,26 @@ export function OnboardingWizard({ orgName }: OnboardingWizardProps) {
 
                     {step === "employees" && (
                         <div className="space-y-4">
-                            <h2 className="text-xl font-bold text-gray-900">
+                            <h2 className="text-xl font-bold text-foreground">
                                 {t("onboarding.employeesTitle") || "Add Employees"}
                             </h2>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-muted-foreground">
                                 {t("onboarding.employeesDesc") || "Add your team members. You can always add more later."}
                             </p>
 
                             {employees.length > 0 && (
                                 <div className="space-y-1">
                                     {employees.map((emp, i) => (
-                                        <div key={i} className="flex items-center gap-2 bg-green-50 rounded px-3 py-2 text-sm">
+                                        <div key={i} className="flex items-center gap-2 bg-green-50 dark:bg-green-950/50 rounded px-3 py-2 text-sm">
                                             <Check className="h-4 w-4 text-green-600" />
                                             <span className="font-medium">{emp.first_name} {emp.last_name}</span>
-                                            <span className="text-gray-500 text-xs">({emp.role})</span>
+                                            <span className="text-muted-foreground text-xs">({emp.role})</span>
                                         </div>
                                     ))}
                                 </div>
                             )}
 
-                            <div className="space-y-3 bg-gray-50 rounded-lg p-4">
+                            <div className="space-y-3 bg-muted rounded-lg p-4">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="space-y-1">
                                         <Label className="text-xs">{t("forms.first_name") || "First Name"}</Label>
@@ -394,14 +394,14 @@ export function OnboardingWizard({ orgName }: OnboardingWizardProps) {
                     {step === "done" && (
                         <div className="text-center space-y-4">
                             <PartyPopper className="h-12 w-12 text-green-600 mx-auto" />
-                            <h1 className="text-2xl font-bold text-gray-900">
+                            <h1 className="text-2xl font-bold text-foreground">
                                 {t("onboarding.doneTitle") || "You're all set!"}
                             </h1>
-                            <p className="text-gray-600">
+                            <p className="text-muted-foreground">
                                 {t("onboarding.doneDesc") || "Your organization is ready. Head to the dashboard to start managing schedules."}
                             </p>
                             {employees.length > 0 && (
-                                <p className="text-sm text-gray-500">
+                                <p className="text-sm text-muted-foreground">
                                     {t("onboarding.addedCount") || `Added ${employees.length} employee(s).`}
                                 </p>
                             )}

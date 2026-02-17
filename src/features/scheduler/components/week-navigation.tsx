@@ -27,7 +27,7 @@ export function WeekNavigation({ weekStartsOn }: WeekNavigationProps) {
     };
 
     return (
-        <div className="flex items-center justify-between mb-4 bg-white p-3 rounded-lg border shadow-sm">
+        <div className="flex items-center justify-between mb-4 bg-card p-3 rounded-lg border shadow-sm">
             <div className="flex items-center gap-2">
                 <Button
                     variant="outline"
@@ -53,7 +53,7 @@ export function WeekNavigation({ weekStartsOn }: WeekNavigationProps) {
             </div>
 
             <div className="flex items-center gap-2 font-medium text-lg">
-                <CalendarIcon className="h-5 w-5 text-gray-500" />
+                <CalendarIcon className="h-5 w-5 text-muted-foreground" />
                 <span>
           {format(start, "MMM d")} - {format(end, "MMM d, yyyy")}
         </span>

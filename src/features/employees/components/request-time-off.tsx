@@ -52,7 +52,7 @@ export function RequestTimeOff({ employeeId, shareToken, label }: { employeeId: 
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
-                <div className="p-3 border-b bg-gray-50 text-sm font-medium text-center">
+                <div className="p-3 border-b bg-muted text-sm font-medium text-center">
                     {t("employee.select_date")}
                 </div>
                 <Calendar

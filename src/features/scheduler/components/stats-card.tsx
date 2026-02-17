@@ -29,16 +29,16 @@ export function StatsCard({ stats }: StatsProps) {
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center text-sm text-gray-500">
+                    <div className="flex items-center text-sm text-muted-foreground">
                         <Coins className="mr-2 h-4 w-4 text-green-600" />
                         {t("stats.est_cost")}
                     </div>
-                    <div className="font-bold text-lg text-green-700">
+                    <div className="font-bold text-lg text-green-700 dark:text-green-400">
                         {stats.totalCost} PLN
                     </div>
                 </div>
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center text-sm text-gray-500">
+                    <div className="flex items-center text-sm text-muted-foreground">
                         <Clock className="mr-2 h-4 w-4 text-blue-500" />
                         {t("stats.hours")}
                     </div>
@@ -47,7 +47,7 @@ export function StatsCard({ stats }: StatsProps) {
                     </div>
                 </div>
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center text-sm text-gray-500">
+                    <div className="flex items-center text-sm text-muted-foreground">
                         <Users className="mr-2 h-4 w-4 text-orange-500" />
                         {t("stats.total_shifts")}
                     </div>

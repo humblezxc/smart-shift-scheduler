@@ -56,11 +56,11 @@ export function ShiftTemplatesSection({ templates, onAdd, onDelete, isPending, c
                     {templates?.map((template, index) => (
                         <div
                             key={template.id || `template-${index}`}
-                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                            className="flex items-center justify-between p-3 bg-muted rounded-lg"
                         >
                             <div>
                                 <p className="font-medium">{template.name}</p>
-                                <p className="text-sm text-gray-500">
+                                <p className="text-sm text-muted-foreground">
                                     {template.start_time} - {template.end_time} |{" "}
                                     {template.applicable_days?.join(", ") || "all days"}
                                 </p>
@@ -81,7 +81,7 @@ export function ShiftTemplatesSection({ templates, onAdd, onDelete, isPending, c
 
                 {canEdit && (
                     <div className="border-t pt-4 space-y-3">
-                        <p className="text-sm font-medium text-gray-700">
+                        <p className="text-sm font-medium text-foreground">
                             {t("settings.addTemplate") || "Add New Template"}
                         </p>
                         <div className="grid gap-3 sm:grid-cols-3">

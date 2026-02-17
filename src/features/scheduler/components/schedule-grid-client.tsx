@@ -78,15 +78,15 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays, c
     };
 
     return (
-        <div className="border rounded-lg bg-white overflow-hidden">
-            <div className="flex gap-4 px-4 py-2 text-xs text-gray-500 bg-gray-50/50 border-b overflow-x-auto">
-                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-purple-200"></div> {t("roles.owner")}</div>
-                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-amber-200"></div> {t("roles.manager")}</div>
-                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-blue-200"></div> {t("roles.cashier")}</div>
-                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-emerald-200"></div> {t("roles.student")}</div>
+        <div className="border rounded-lg bg-card overflow-hidden">
+            <div className="flex gap-4 px-4 py-2 text-xs text-muted-foreground bg-muted/50 border-b overflow-x-auto">
+                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-purple-200 dark:bg-purple-800"></div> {t("roles.owner")}</div>
+                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-amber-200 dark:bg-amber-800"></div> {t("roles.manager")}</div>
+                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-blue-200 dark:bg-blue-800"></div> {t("roles.cashier")}</div>
+                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-emerald-200 dark:bg-emerald-800"></div> {t("roles.student")}</div>
             </div>
 
-            <div className="grid grid-cols-7 border-b bg-gray-50">
+            <div className="grid grid-cols-7 border-b bg-muted">
                 {days.map((day) => {
                     const dateStr = format(day, "yyyy-MM-dd");
                     const hasHolidayRecord = holidays.some(h => h.date === dateStr);
@@ -100,15 +100,15 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays, c
                             title={canManage ? (isSpecial ? "Click to make working day" : "Click to make holiday") : undefined}
                             className={cn(
                                 "p-3 text-center border-r last:border-r-0 transition-colors",
-                                canManage && "cursor-pointer hover:bg-gray-100",
-                                isSpecial && "bg-red-50 text-red-600",
-                                isSpecial && canManage && "hover:bg-red-100"
+                                canManage && "cursor-pointer hover:bg-accent",
+                                isSpecial && "bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400",
+                                isSpecial && canManage && "hover:bg-red-100 dark:hover:bg-red-950/60"
                             )}
                         >
                             <div className="font-medium text-sm opacity-70">
                                 {getTranslatedDay(day)}
                             </div>
-                            <div className={cn("font-bold text-lg", isSpecial && "text-red-700")}>
+                            <div className={cn("font-bold text-lg", isSpecial && "text-red-700 dark:text-red-400")}>
                                 {format(day, "d")}
                             </div>
 

@@ -35,7 +35,7 @@ export function CustomRolesSection({ customRoles, onAdd, onDelete, isPending, ca
             <CardContent className="space-y-4">
                 <div className="flex flex-wrap gap-2">
                     {DEFAULT_ROLES.map((role) => (
-                        <span key={role} className="px-3 py-1 bg-gray-100 rounded-full text-sm">
+                        <span key={role} className="px-3 py-1 bg-muted rounded-full text-sm">
                             {t(`roles.${role}`) || role}
                         </span>
                     ))}
@@ -44,7 +44,7 @@ export function CustomRolesSection({ customRoles, onAdd, onDelete, isPending, ca
                         .map((role, index) => (
                             <span
                                 key={`custom-${index}-${role}`}
-                                className="px-3 py-1 bg-blue-100 rounded-full text-sm flex items-center gap-2"
+                                className="px-3 py-1 bg-blue-100 dark:bg-blue-950/60 rounded-full text-sm flex items-center gap-2"
                             >
                                 {role}
                                 {canEdit && (

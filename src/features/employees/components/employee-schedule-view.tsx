@@ -38,17 +38,17 @@ export function EmployeeScheduleView({ employee, shifts, shareToken }: Props) {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4">
+        <div className="min-h-screen bg-background p-4">
             <div className="max-w-md mx-auto space-y-6">
                 <div className="flex justify-end">
                     <LanguageSwitcher />
                 </div>
                 <div className="text-center space-y-2">
-                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto text-2xl">👋</div>
-                    <h1 className="text-2xl font-bold text-gray-900">
+                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-950/50 rounded-full flex items-center justify-center mx-auto text-2xl">👋</div>
+                    <h1 className="text-2xl font-bold text-foreground">
                         {t("employee.hi")}, {employee.first_name}!
                     </h1>
-                    <p className="text-gray-500">{t("employee.upcoming_shifts")}</p>
+                    <p className="text-muted-foreground">{t("employee.upcoming_shifts")}</p>
                 </div>
                 <div className="flex justify-center pb-2">
                     <RequestTimeOff employeeId={employee.id} shareToken={shareToken} label={t("employee.cant_work")} />
@@ -56,7 +56,7 @@ export function EmployeeScheduleView({ employee, shifts, shareToken }: Props) {
                 <div className="space-y-4">
                     {!shifts || shifts.length === 0 ? (
                         <Card>
-                            <CardContent className="p-6 text-center text-gray-500">
+                            <CardContent className="p-6 text-center text-muted-foreground">
                                 {t("employee.no_shifts")}
                             </CardContent>
                         </Card>
@@ -71,10 +71,10 @@ export function EmployeeScheduleView({ employee, shifts, shareToken }: Props) {
                                     <CardContent className="p-4 flex flex-col gap-3">
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <h3 className="font-bold text-lg text-gray-900">
+                                                <h3 className="font-bold text-lg text-foreground">
                                                     {translateDate(startDate)}
                                                 </h3>
-                                                <div className="flex items-center text-gray-500 text-sm mt-1">
+                                                <div className="flex items-center text-muted-foreground text-sm mt-1">
                                                     <Clock className="w-4 h-4 mr-1" />
                                                     {format(startDate, "HH:mm")} - {format(endDate, "HH:mm")}
                                                 </div>
@@ -82,7 +82,7 @@ export function EmployeeScheduleView({ employee, shifts, shareToken }: Props) {
                                             <Badge variant="secondary">{duration}h</Badge>
                                         </div>
                                         <div className="flex gap-2 mt-2">
-                                            <Button variant="outline" className="flex-1 text-blue-600 border-blue-200 hover:bg-blue-50" asChild>
+                                            <Button variant="outline" className="flex-1 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-950/50" asChild>
                                                 <a
                                                     href={getGoogleCalendarLink(shift, employee.first_name, "Długa 55K")}
                                                     target="_blank"
@@ -106,7 +106,7 @@ export function EmployeeScheduleView({ employee, shifts, shareToken }: Props) {
                         })
                     )}
                 </div>
-                <div className="text-center text-xs text-gray-400 py-6">
+                <div className="text-center text-xs text-muted-foreground py-6">
                     Smart Shift Scheduler © {new Date().getFullYear()}
                 </div>
             </div>
