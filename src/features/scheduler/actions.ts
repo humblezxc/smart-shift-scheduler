@@ -46,7 +46,6 @@ export async function getShiftsForWeek(startOfWeek: Date, endOfWeek: Date) {
         .lte("start_time", endOfDay(endOfWeek).toISOString());
 
     if (error) {
-        console.error("Error fetching shifts:", error);
         return [];
     }
 
@@ -86,7 +85,6 @@ export async function createShift(data: ShiftFormValues) {
     });
 
     if (error) {
-        console.error("Db Error:", error);
         return { error: "Could not create shift" };
     }
 
@@ -308,7 +306,6 @@ export async function deleteShift(id: number) {
         .eq("organization_id", orgId);
 
     if (error) {
-        console.error("Delete Error:", error);
         return { error: "Could not delete shift" };
     }
     revalidatePath("/");
@@ -340,7 +337,6 @@ export async function updateShift(id: number, data: ShiftFormValues) {
         .eq("organization_id", orgId);
 
     if (error) {
-        console.error("Update Error:", error);
         return { error: "Could not update shift" };
     }
     revalidatePath("/");
@@ -376,7 +372,6 @@ export async function moveShiftToDate(shiftId: number, newDate: string) {
         .eq("organization_id", orgId);
 
     if (error) {
-        console.error("Move Error:", error);
         return { error: "Could not move shift" };
     }
 
@@ -493,7 +488,6 @@ export async function createTimeOffRequest(data: z.infer<typeof timeOffSchema>) 
         reason,
     });
     if (error) {
-        console.error("Time Off Error:", error);
         return { error: "Failed to request time off" };
     }
     revalidatePath("/");
@@ -632,7 +626,6 @@ export async function getMonthShifts(date: Date) {
         .lte("end_time", end.toISOString());
 
     if (error) {
-        console.error("Error fetching month shifts:", error);
         return [];
     }
     return data;

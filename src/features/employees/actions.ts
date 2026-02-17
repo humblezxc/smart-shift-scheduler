@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient, requireOrganization, requireRole } from "@/lib/supabase-server";
 import { employeeSchema, EmployeeFormValues } from "./schemas";
 import { revalidatePath } from "next/cache";
+import { canAddEmployee, SubscriptionTier } from "@/lib/stripe";
 
 async function getOrgId() {
     const userOrg = await requireOrganization();
@@ -21,7 +22,6 @@ export async function getEmployees() {
         .order("first_name");
 
     if (error) {
-        console.error("Error fetching employees:", error);
         return [];
     }
 
@@ -41,13 +41,29 @@ export async function createEmployee(data: EmployeeFormValues) {
 
     const supabase = await createSupabaseServerClient();
 
+    const { data: org } = await supabase
+        .from("organizations")
+        .select("subscription_tier")
+        .eq("id", orgId)
+        .single();
+
+    const tier = (org?.subscription_tier || "free") as SubscriptionTier;
+
+    const { count } = await supabase
+        .from("employees")
+        .select("*", { count: "exact", head: true })
+        .eq("organization_id", orgId);
+
+    if (!canAddEmployee(tier, count || 0)) {
+        return { error: "Employee limit reached. Upgrade your plan to add more employees." };
+    }
+
     const { error } = await supabase.from("employees").insert({
         ...result.data,
         organization_id: orgId,
     });
 
     if (error) {
-        console.error(error);
         return { error: "Database error: Could not save employee" };
     }
 
@@ -76,7 +92,6 @@ export async function updateEmployee(id: number, data: EmployeeFormValues) {
         .eq("organization_id", orgId);
 
     if (error) {
-        console.error(error);
         return { error: "Database error: Could not update employee" };
     }
 
@@ -98,7 +113,6 @@ export async function deleteEmployee(id: number) {
         .eq("organization_id", orgId);
 
     if (error) {
-        console.error(error);
         return { error: "Database error: Could not delete employee" };
     }
 
@@ -128,7 +142,6 @@ export async function createPublicTimeOffRequest(data: {
         .single<{ success: boolean; error?: string }>();
 
     if (error) {
-        console.error("Public time off error:", error);
         return { error: "Failed to request time off" };
     }
 

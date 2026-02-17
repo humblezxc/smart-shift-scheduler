@@ -34,7 +34,6 @@ export async function setupOrganization(formData: FormData) {
     });
 
     if (error) {
-        console.error("Setup org error:", error);
         return { error: "Failed to create organization" };
     }
 

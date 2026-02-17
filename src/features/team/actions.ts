@@ -4,6 +4,7 @@ import { createSupabaseServerClient, requireOrganization, getUser, getUserOrgani
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { sendEmail, buildInviteEmail } from "@/lib/email";
 
 export type TeamRole = "owner" | "admin" | "manager" | "viewer";
 export type InviteRole = "admin" | "manager" | "viewer";
@@ -76,16 +77,34 @@ export async function createInvite(formData: FormData) {
         .single();
 
     if (error) {
-        console.error("Create invite error:", error);
         return { error: "Failed to create invite" };
     }
 
     revalidatePath("/settings");
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+    const inviteUrl = `${baseUrl}/invite/${invite.token}`;
+
+    const { data: org } = await supabase
+        .from("organizations")
+        .select("name")
+        .eq("id", userOrg.organization_id)
+        .single();
+
+    const emailContent = buildInviteEmail({
+        organizationName: org?.name || "your team",
+        role,
+        inviteUrl,
+    });
+
+    await sendEmail({
+        to: email.toLowerCase(),
+        ...emailContent,
+    });
+
     return {
         success: true,
-        inviteUrl: `${baseUrl}/invite/${invite.token}`,
+        inviteUrl,
         invite,
     };
 }
@@ -104,7 +123,6 @@ export async function listInvites(): Promise<OrganizationInvite[]> {
         .order("created_at", { ascending: false });
 
     if (error) {
-        console.error("List invites error:", error);
         return [];
     }
 
@@ -127,7 +145,6 @@ export async function revokeInvite(id: string) {
         .eq("organization_id", userOrg.organization_id);
 
     if (error) {
-        console.error("Revoke invite error:", error);
         return { error: "Failed to revoke invite" };
     }
 
@@ -224,7 +241,6 @@ export async function acceptInviteExistingUser(token: string) {
         .single<AcceptInviteResult>();
 
     if (error) {
-        console.error("Accept invite error:", error);
         return { error: "Failed to accept invite" };
     }
 
@@ -284,7 +300,6 @@ export async function acceptInviteNewUser(formData: FormData) {
         .single<AcceptInviteResult>();
 
     if (error) {
-        console.error("Accept invite error:", error);
         return { error: "Account created but failed to join organization" };
     }
 
@@ -310,7 +325,6 @@ export async function listTeamMembers(): Promise<TeamMember[]> {
         .rpc("get_team_members", { org_id: userOrg.organization_id });
 
     if (error) {
-        console.error("List team members error:", error);
         return [];
     }
 
@@ -344,7 +358,6 @@ export async function updateMemberRole(userId: string, newRole: InviteRole) {
         .single<{ success: boolean; error?: string }>();
 
     if (error) {
-        console.error("Update member role error:", error);
         return { error: "Failed to update member role" };
     }
 
@@ -372,7 +385,6 @@ export async function removeMember(userId: string) {
         .single<{ success: boolean; error?: string }>();
 
     if (error) {
-        console.error("Remove member error:", error);
         return { error: "Failed to remove member" };
     }
 

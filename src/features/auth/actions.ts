@@ -74,7 +74,6 @@ export async function signup(formData: FormData) {
         });
 
     if (orgError) {
-        console.error("Org creation error:", orgError);
         return { error: "Failed to create organization" };
     }
 
