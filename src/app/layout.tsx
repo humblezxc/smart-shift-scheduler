@@ -5,6 +5,7 @@ import {Toaster} from "@/components/ui/sonner";
 import React from "react";
 import { LanguageProvider } from "@/context/language-context";
 import { Analytics } from "@vercel/analytics/react";
+import { ThemeProvider } from "next-themes";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,15 +28,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#111827" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <LanguageProvider>
           {children}
           <Toaster />
           <Analytics />
       </LanguageProvider>
+      </ThemeProvider>
       </body>
     </html>
   );

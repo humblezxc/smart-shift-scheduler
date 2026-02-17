@@ -11,6 +11,8 @@ import { LogoutButton } from "@/features/auth/components/logout-button";
 import { SettingsButton } from "@/features/settings/components/settings-button";
 import { Employee } from "@/types";
 import { useLanguage } from "@/context/language-context";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { AccountButton } from "@/features/account/components/account-button";
 
 interface MobileNavProps {
     currentDate: Date;
@@ -35,18 +37,22 @@ export function MobileNav({ currentDate, employees, canManage = false }: MobileN
                 </SheetHeader>
                 <div className="flex flex-col gap-4 mt-6">
                     <div className="flex items-center justify-between border-b pb-4">
-                        <span className="text-sm font-medium text-gray-500">Language</span>
-                        <LanguageSwitcher />
+                        <span className="text-sm font-medium text-muted-foreground">Language</span>
+                        <div className="flex items-center gap-2">
+                            <ThemeToggle />
+                            <LanguageSwitcher />
+                        </div>
                     </div>
 
                     <div className="space-y-4">
                         <div className="grid gap-2">
-                            <label className="text-sm font-medium text-gray-500">Actions</label>
+                            <label className="text-sm font-medium text-muted-foreground">Actions</label>
                             <div className="flex flex-col gap-2 [&>button]:w-full [&>div]:w-full [&>form]:w-full [&>form>button]:w-full">
                                 {canManage && <AddEmployeeDialog />}
                                 <ExportMenu currentDate={currentDate} employees={employees} />
                                 {canManage && <GenerateButton />}
                                 <SettingsButton />
+                                <AccountButton />
                             </div>
                         </div>
                     </div>

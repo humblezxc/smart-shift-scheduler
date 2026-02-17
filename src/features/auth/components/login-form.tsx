@@ -67,7 +67,12 @@ export function LoginForm() {
             </div>
 
             <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Password</Label>
+                    <Link href="/forgot-password" className="text-xs text-blue-600 hover:underline">
+                        Forgot password?
+                    </Link>
+                </div>
                 <Input
                     id="password"
                     name="password"
@@ -82,7 +87,7 @@ export function LoginForm() {
                 {loading ? "Signing in..." : "Sign In"}
             </Button>
 
-            <p className="text-center text-sm text-gray-600">
+            <p className="text-center text-sm text-muted-foreground">
                 Don&apos;t have an account?{" "}
                 <Link href="/signup" className="text-blue-600 hover:underline">
                     Sign up
@@ -96,7 +101,7 @@ export function LoginForm() {
                             <span className="w-full border-t" />
                         </div>
                         <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-white px-2 text-muted-foreground">or</span>
+                            <span className="bg-card px-2 text-muted-foreground">or</span>
                         </div>
                     </div>
 

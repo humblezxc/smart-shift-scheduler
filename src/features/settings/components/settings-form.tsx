@@ -70,12 +70,12 @@ export function SettingsForm({ organization, settings, teamSection, canEdit = fa
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <header className="bg-white border-b h-16 flex items-center px-4 sm:px-6 sticky top-0 z-20 shadow-sm">
+        <div className="min-h-screen bg-background">
+            <header className="bg-card border-b h-16 flex items-center px-4 sm:px-6 sticky top-0 z-20 shadow-sm">
                 <Button variant="ghost" size="icon" onClick={() => router.push("/")}>
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
-                <h1 className="text-lg sm:text-xl font-bold tracking-tight text-gray-800 ml-2">
+                <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground ml-2">
                     {t("settings.title") || "Settings"}
                 </h1>
             </header>

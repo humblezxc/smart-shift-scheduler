@@ -60,7 +60,7 @@ export function TeamSettingsSection({ invites, userRole, teamMembers, currentUse
             case "owner": return <Crown className="h-4 w-4 text-purple-500" />;
             case "admin": return <Shield className="h-4 w-4 text-blue-500" />;
             case "manager": return <UserCog className="h-4 w-4 text-amber-500" />;
-            default: return <Eye className="h-4 w-4 text-gray-400" />;
+            default: return <Eye className="h-4 w-4 text-muted-foreground" />;
         }
     };
 
@@ -157,22 +157,22 @@ export function TeamSettingsSection({ invites, userRole, teamMembers, currentUse
     }
 
     return (
-        <section className="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
+        <section className="bg-card rounded-lg shadow-sm border p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
-                <Users className="h-5 w-5 text-gray-600" />
-                <h2 className="text-lg font-semibold text-gray-800">
+                <Users className="h-5 w-5 text-muted-foreground" />
+                <h2 className="text-lg font-semibold text-foreground">
                     {t("team.title") || "Team Management"}
                 </h2>
             </div>
 
             {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm mb-4">
+                <div className="bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-3 py-2 rounded text-sm mb-4">
                     {error}
                 </div>
             )}
 
             {success && (
-                <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded text-sm mb-4">
+                <div className="bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-3 py-2 rounded text-sm mb-4">
                     <div className="flex items-center justify-between">
                         <span>{success}</span>
                         {lastInviteUrl && (
@@ -196,7 +196,7 @@ export function TeamSettingsSection({ invites, userRole, teamMembers, currentUse
 
             {teamMembers.length > 0 && (
                 <div className="mb-6">
-                    <h3 className="text-sm font-medium text-gray-700 mb-3">
+                    <h3 className="text-sm font-medium text-foreground mb-3">
                         {t("team.members") || "Team Members"} ({teamMembers.length})
                     </h3>
                     <div className="space-y-2">
@@ -208,21 +208,21 @@ export function TeamSettingsSection({ invites, userRole, teamMembers, currentUse
                             return (
                                 <div
                                     key={member.user_id}
-                                    className="flex items-center justify-between bg-gray-50 rounded-md px-3 py-2 text-sm"
+                                    className="flex items-center justify-between bg-muted rounded-md px-3 py-2 text-sm"
                                 >
                                     <div className="flex items-center gap-3">
                                         {getRoleIcon(member.role)}
                                         <div>
-                                            <div className="font-medium text-gray-900">
+                                            <div className="font-medium text-foreground">
                                                 {member.email}
                                                 {isSelf && (
-                                                    <span className="text-xs text-gray-400 ml-1">
+                                                    <span className="text-xs text-muted-foreground ml-1">
                                                         ({t("team.you") || "you"})
                                                     </span>
                                                 )}
                                             </div>
                                             {!canEditMember && (
-                                                <div className="text-xs text-gray-500">
+                                                <div className="text-xs text-muted-foreground">
                                                     {formatRole(member.role)}
                                                 </div>
                                             )}
@@ -289,7 +289,7 @@ export function TeamSettingsSection({ invites, userRole, teamMembers, currentUse
             )}
 
             <form onSubmit={handleCreateInvite} className="space-y-4 mb-6">
-                <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                     <UserPlus className="h-4 w-4" />
                     {t("team.inviteMember") || "Invite a new team member"}
                 </div>
@@ -343,20 +343,20 @@ export function TeamSettingsSection({ invites, userRole, teamMembers, currentUse
 
             {invites.length > 0 && (
                 <div className="border-t pt-4">
-                    <h3 className="text-sm font-medium text-gray-700 mb-3">
+                    <h3 className="text-sm font-medium text-foreground mb-3">
                         {t("team.pendingInvites") || "Pending Invites"} ({invites.length})
                     </h3>
                     <div className="space-y-2">
                         {invites.map((invite) => (
                             <div
                                 key={invite.id}
-                                className="flex items-center justify-between bg-gray-50 rounded-md px-3 py-2 text-sm"
+                                className="flex items-center justify-between bg-muted rounded-md px-3 py-2 text-sm"
                             >
                                 <div className="flex-1 min-w-0">
-                                    <div className="font-medium text-gray-900 truncate">
+                                    <div className="font-medium text-foreground truncate">
                                         {invite.email}
                                     </div>
-                                    <div className="text-xs text-gray-500">
+                                    <div className="text-xs text-muted-foreground">
                                         {formatRole(invite.role)} &middot; {t("team.expires") || "Expires"}{" "}
                                         {formatDate(invite.expires_at)}
                                     </div>
@@ -391,10 +391,10 @@ export function TeamSettingsSection({ invites, userRole, teamMembers, currentUse
             )}
 
             <div className="border-t pt-4 mt-4">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">
+                <h3 className="text-sm font-medium text-foreground mb-2">
                     {t("team.rolePermissions") || "Role Permissions"}
                 </h3>
-                <div className="text-xs text-gray-500 space-y-1">
+                <div className="text-xs text-muted-foreground space-y-1">
                     <p>
                         <span className="font-medium">{formatRole("admin")}:</span>{" "}
                         {t("team.adminDesc") || "Manage team, settings, all schedules"}

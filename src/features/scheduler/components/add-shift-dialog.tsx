@@ -69,7 +69,7 @@ export function AddShiftDialog({ date, employees }: Props) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="w-full mt-2 text-gray-400 hover:text-primary hover:bg-gray-100 border border-dashed border-gray-200">
+                <Button variant="ghost" size="sm" className="w-full mt-2 text-muted-foreground hover:text-primary hover:bg-accent border border-dashed border-border">
                     <Plus className="w-4 h-4 mr-1" /> {t("common.add")}
                 </Button>
             </DialogTrigger>

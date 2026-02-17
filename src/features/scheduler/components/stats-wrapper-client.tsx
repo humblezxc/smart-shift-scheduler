@@ -41,7 +41,7 @@ export function StatsWrapperClient({ monthStats: initialMonthStats, allTimeStats
     }, [selectedMonth]);
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6">
+        <div className="min-h-screen bg-background p-6">
             <div className="max-w-5xl mx-auto space-y-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -50,7 +50,7 @@ export function StatsWrapperClient({ monthStats: initialMonthStats, allTimeStats
                         </Button>
                         <div>
                             <h1 className="text-2xl font-bold tracking-tight">{t("stats.title")}</h1>
-                            <p className="text-gray-500">{t("stats.subtitle") || "Detailed breakdown of hours and earnings."}</p>
+                            <p className="text-muted-foreground">{t("stats.subtitle") || "Detailed breakdown of hours and earnings."}</p>
                         </div>
                     </div>
                     <LanguageSwitcher />
@@ -74,7 +74,7 @@ export function StatsWrapperClient({ monthStats: initialMonthStats, allTimeStats
                             </Button>
                         </div>
                         {isLoading ? (
-                            <div className="text-center py-8 text-gray-500">{t("common.loading") || "Loading..."}</div>
+                            <div className="text-center py-8 text-muted-foreground">{t("common.loading") || "Loading..."}</div>
                         ) : (
                             <StatsViewClient data={monthStats} period="month" />
                         )}

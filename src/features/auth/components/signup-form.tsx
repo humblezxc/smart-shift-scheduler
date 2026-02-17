@@ -26,7 +26,7 @@ export function SignupForm() {
     return (
         <form action={handleSubmit} className="space-y-4">
             {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                <div className="bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded">
                     {error}
                 </div>
             )}
@@ -72,9 +72,9 @@ export function SignupForm() {
                 {loading ? "Creating account..." : "Create Account"}
             </Button>
 
-            <p className="text-center text-sm text-gray-600">
+            <p className="text-center text-sm text-muted-foreground">
                 Already have an account?{" "}
-                <Link href="/login" className="text-blue-600 hover:underline">
+                <Link href="/login" className="text-primary hover:underline">
                     Sign in
                 </Link>
             </p>

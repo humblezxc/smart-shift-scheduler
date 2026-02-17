@@ -16,6 +16,8 @@ import { ExportMenu } from "@/features/scheduler/components/export-menu";
 import { MobileNav } from "@/features/scheduler/components/mobile-nav";
 import { LogoutButton } from "@/features/auth/components/logout-button";
 import { SettingsButton } from "@/features/settings/components/settings-button";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { AccountButton } from "@/features/account/components/account-button";
 import { UserRole } from "@/lib/supabase-server";
 
 interface DashboardViewProps {
@@ -35,22 +37,24 @@ export function DashboardView({stats, currentDate, employees, timeOffs, shifts, 
     const canManage = userRole === 'owner' || userRole === 'admin' || userRole === 'manager';
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
-            <header className="bg-white border-b h-16 flex items-center px-4 sm:px-6 justify-between sticky top-0 z-20 shadow-sm">
+        <div className="min-h-screen bg-background flex flex-col">
+            <header className="bg-card border-b h-16 flex items-center px-4 sm:px-6 justify-between sticky top-0 z-20 shadow-sm">
                 <div>
-                    <h1 className="text-lg sm:text-xl font-bold tracking-tight text-gray-800 truncate max-w-[200px] sm:max-w-none">
+                    <h1 className="text-lg sm:text-xl font-bold tracking-tight truncate max-w-[200px] sm:max-w-none">
                         {t("common.welcome")}
                     </h1>
-                    <p className="text-xs text-gray-500 hidden sm:block">
+                    <p className="text-xs text-muted-foreground hidden sm:block">
                         {t("common.subtitle")}
                     </p>
                 </div>
                 <div className="hidden md:flex gap-2 sm:gap-4 items-center">
+                    <ThemeToggle />
                     <LanguageSwitcher />
                     {canManage && <AddEmployeeDialog />}
                     <ExportMenu currentDate={currentDate} employees={employees} />
                     {canManage && <GenerateButton />}
                     <SettingsButton />
+                    <AccountButton />
                     <LogoutButton />
                 </div>
                 <div className="md:hidden">

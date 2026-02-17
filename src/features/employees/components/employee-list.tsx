@@ -38,10 +38,10 @@ export function EmployeeList({ employees, canManage = false }: EmployeeListProps
     };
 
     const roleBadgeColors: Record<string, string> = {
-        owner: "bg-purple-100 text-purple-700 hover:bg-purple-100",
-        manager: "bg-amber-100 text-amber-700 hover:bg-amber-100",
-        cashier: "bg-blue-100 text-blue-700 hover:bg-blue-100",
-        student: "bg-emerald-100 text-emerald-700 hover:bg-emerald-100",
+        owner: "bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-950/60 dark:text-purple-300 dark:hover:bg-purple-950/80",
+        manager: "bg-amber-100 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-950/80",
+        cashier: "bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-950/80",
+        student: "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-950/80",
     };
 
     return (
@@ -61,7 +61,7 @@ export function EmployeeList({ employees, canManage = false }: EmployeeListProps
                                 {employee.first_name} {employee.last_name}
                             </TableCell>
                             <TableCell>
-                                <Badge variant="outline" className={`border-0 ${roleBadgeColors[employee.role] || "bg-gray-100 text-gray-700"}`}>
+                                <Badge variant="outline" className={`border-0 ${roleBadgeColors[employee.role] || "bg-muted text-muted-foreground"}`}>
                                     {employee.role}
                                 </Badge>
                             </TableCell>
@@ -73,7 +73,7 @@ export function EmployeeList({ employees, canManage = false }: EmployeeListProps
                                         onClick={() => setEditingEmployee(employee)}
                                         title={t("common.edit")}
                                     >
-                                        <Pencil className="h-4 w-4 text-gray-500" />
+                                        <Pencil className="h-4 w-4 text-muted-foreground" />
                                     </Button>
                                 )}
                                 <Button
@@ -88,7 +88,7 @@ export function EmployeeList({ employees, canManage = false }: EmployeeListProps
                                     {copiedId === employee.id ? (
                                         <Check className="h-4 w-4 text-green-600" />
                                     ) : (
-                                        <Link2 className="h-4 w-4 text-gray-500" />
+                                        <Link2 className="h-4 w-4 text-muted-foreground" />
                                     )}
                                 </Button>
                             </TableCell>

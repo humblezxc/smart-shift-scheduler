@@ -26,7 +26,7 @@ export function TimeOffList({ requests, canManage = false }: TimeOffListProps) {
             <CardContent className="p-0">
                 <ScrollArea className="h-[300px] px-4">
                     {!requests?.length && (
-                        <div className="text-center text-gray-400 py-8 text-sm">
+                        <div className="text-center text-muted-foreground py-8 text-sm">
                             {t("common.no_active_requests") || "No active requests"}
                         </div>
                     )}
@@ -34,7 +34,7 @@ export function TimeOffList({ requests, canManage = false }: TimeOffListProps) {
                         {requests?.map((req) => (
                             <div
                                 key={req.id}
-                                className="flex items-center justify-between p-3 bg-red-50 border border-red-100 rounded-md"
+                                className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/50 border border-red-100 dark:border-red-900 rounded-md"
                             >
                                 <div>
                                     <div className="font-medium text-sm">
@@ -44,7 +44,7 @@ export function TimeOffList({ requests, canManage = false }: TimeOffListProps) {
                                         {format(new Date(req.date), "EEE, MMM d")}
                                     </div>
                                     {req.reason && (
-                                        <div className="text-[10px] text-gray-500 italic">"{req.reason}"</div>
+                                        <div className="text-[10px] text-muted-foreground italic">"{req.reason}"</div>
                                     )}
                                 </div>
                                 {canManage && <DeleteTimeOffButton id={req.id} />}
