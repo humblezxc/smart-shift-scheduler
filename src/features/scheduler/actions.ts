@@ -611,6 +611,81 @@ export async function getDetailedStats(period: 'month' | 'all', date: Date) {
     };
 }
 
+export async function getDetailedStatsByRange(
+    startDate: Date,
+    endDate: Date,
+    employeeId?: string
+) {
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
+    let query = supabase
+        .from("shifts")
+        .select(`
+      id, start_time, end_time, hourly_rate,
+      employee:employees (id, first_name, last_name, role, hourly_rate)
+    `)
+        .eq("organization_id", orgId)
+        .gte("start_time", startDate.toISOString())
+        .lte("start_time", endDate.toISOString());
+
+    if (employeeId) {
+        query = query.eq("employee_id", employeeId);
+    }
+
+    const { data: shifts, error } = await query;
+    if (error || !shifts) return null;
+
+    const statsByEmployee: Record<string, { name: string; role: string; hours: number; earned: number }> = {};
+    let staffTotalEarned = 0;
+
+    shifts.forEach((shift) => {
+        const employeeData = shift.employee;
+        const emp = Array.isArray(employeeData) ? employeeData[0] : employeeData;
+        const safeEmp = emp as any;
+        if (!safeEmp) return;
+
+        const hours = (new Date(shift.end_time).getTime() - new Date(shift.start_time).getTime()) / 3_600_000;
+        const rate = shift.hourly_rate ?? safeEmp.hourly_rate ?? 0;
+        const earned = hours * rate;
+        const empId = safeEmp.id;
+        const empName = `${safeEmp.first_name} ${safeEmp.last_name}`;
+        const role = safeEmp.role;
+
+        if (!statsByEmployee[empId]) {
+            statsByEmployee[empId] = { name: empName, role, hours: 0, earned: 0 };
+        }
+        statsByEmployee[empId].hours += hours;
+        statsByEmployee[empId].earned += earned;
+
+        if (role === 'student' || role === 'cashier') {
+            staffTotalEarned += earned;
+        }
+    });
+
+    const shiftBreakdown = employeeId
+        ? shifts.map((s) => {
+            const hours = (new Date(s.end_time).getTime() - new Date(s.start_time).getTime()) / 3_600_000;
+            const emp = Array.isArray(s.employee) ? s.employee[0] : s.employee as any;
+            const rate = s.hourly_rate ?? (emp as any)?.hourly_rate ?? 0;
+            return {
+                date: s.start_time.slice(0, 10),
+                start: s.start_time.slice(11, 16),
+                end: s.end_time.slice(11, 16),
+                hours,
+                earned: hours * rate,
+            };
+        }).sort((a, b) => a.date.localeCompare(b.date))
+        : undefined;
+
+    return {
+        byEmployee: Object.values(statsByEmployee),
+        staffTotalEarned: Math.round(staffTotalEarned),
+        totalShifts: shifts.length,
+        shifts: shiftBreakdown,
+    };
+}
+
 export async function getMonthShifts(date: Date) {
     const supabase = await createSupabaseServerClient();
     const orgId = await getOrgId();
