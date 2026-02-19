@@ -669,13 +669,12 @@ export async function getDetailedStatsByRange(
             const emp = Array.isArray(s.employee) ? s.employee[0] : s.employee as any;
             const rate = s.hourly_rate ?? (emp as any)?.hourly_rate ?? 0;
             return {
-                date: s.start_time.slice(0, 10),
-                start: s.start_time.slice(11, 16),
-                end: s.end_time.slice(11, 16),
+                startTs: s.start_time,
+                endTs: s.end_time,
                 hours,
                 earned: hours * rate,
             };
-        }).sort((a, b) => a.date.localeCompare(b.date))
+        }).sort((a, b) => a.startTs.localeCompare(b.startTs))
         : undefined;
 
     return {
