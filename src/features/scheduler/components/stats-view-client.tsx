@@ -7,12 +7,31 @@ import { Coins, Users } from "lucide-react";
 import { useLanguage } from "@/context/language-context";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
-export function StatsViewClient({ data, period }: { data: any, period: 'month' | 'all' }) {
+interface ShiftRow {
+    date: string;
+    start: string;
+    end: string;
+    hours: number;
+    earned: number;
+}
+
+export function StatsViewClient({ data, period, rangeLabel, shifts }: {
+    data: any;
+    period: 'month' | 'all' | 'range';
+    rangeLabel?: string;
+    shifts?: ShiftRow[];
+}) {
     const { t } = useLanguage();
 
     if (!data) return <div>{t("common.error") || "No data available"}</div>;
 
     const totalCost = data.byEmployee.reduce((acc: number, curr: any) => acc + curr.earned, 0);
+
+    const periodLabel = period === 'month'
+        ? t("stats.month")
+        : period === 'range'
+            ? (rangeLabel || t("stats.custom_range"))
+            : t("stats.all_time");
 
     const roleBadgeColors: Record<string, string> = {
         owner: "bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-950/60 dark:text-purple-300 dark:hover:bg-purple-950/80",
@@ -27,7 +46,7 @@ export function StatsViewClient({ data, period }: { data: any, period: 'month' |
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
-                            {t("stats.total_cost")} ({period === 'month' ? t("stats.month") : t("stats.all_time")})
+                            {t("stats.total_cost")} ({periodLabel})
                         </CardTitle>
                         <Coins className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
@@ -113,6 +132,40 @@ export function StatsViewClient({ data, period }: { data: any, period: 'month' |
                     </Table>
                 </CardContent>
             </Card>
+
+            {shifts && shifts.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>{t("stats.shift_breakdown") || "Shift Breakdown"}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>{t("stats.date") || "Date"}</TableHead>
+                                    <TableHead>{t("forms.start_time")}</TableHead>
+                                    <TableHead>{t("forms.end_time")}</TableHead>
+                                    <TableHead className="text-right">{t("stats.hours")}</TableHead>
+                                    <TableHead className="text-right">{t("stats.earned")}</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {shifts.map((s, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell className="font-mono">{s.date}</TableCell>
+                                        <TableCell className="font-mono">{s.start}</TableCell>
+                                        <TableCell className="font-mono">{s.end}</TableCell>
+                                        <TableCell className="text-right font-mono">{s.hours.toFixed(1)} h</TableCell>
+                                        <TableCell className="text-right font-mono font-bold text-green-700 dark:text-green-400">
+                                            {Math.round(s.earned)} PLN
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            )}
         </>
     );
 }
