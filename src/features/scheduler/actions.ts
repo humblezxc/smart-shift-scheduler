@@ -67,6 +67,7 @@ export async function createShift(data: ShiftFormValues) {
 
     const { date, start_time, end_time, employee_id } = result.data;
     const dateStr = format(new Date(date), "yyyy-MM-dd");
+    const endDateStr = end_time <= start_time ? format(addDays(new Date(date), 1), "yyyy-MM-dd") : dateStr;
     const tz = await getOrgTimezone(orgId);
 
     const { data: employee } = await supabase
@@ -80,7 +81,7 @@ export async function createShift(data: ShiftFormValues) {
         employee_id,
         organization_id: orgId,
         start_time: buildTimestamp(dateStr, start_time, tz),
-        end_time: buildTimestamp(dateStr, end_time, tz),
+        end_time: buildTimestamp(endDateStr, end_time, tz),
         hourly_rate: employee?.hourly_rate || 0,
     });
 
@@ -324,6 +325,7 @@ export async function updateShift(id: number, data: ShiftFormValues) {
 
     const { date, start_time, end_time, employee_id } = result.data;
     const dateStr = format(new Date(date), "yyyy-MM-dd");
+    const endDateStr = end_time <= start_time ? format(addDays(new Date(date), 1), "yyyy-MM-dd") : dateStr;
     const tz = await getOrgTimezone(orgId);
 
     const { error } = await supabase
@@ -331,7 +333,7 @@ export async function updateShift(id: number, data: ShiftFormValues) {
         .update({
             employee_id,
             start_time: buildTimestamp(dateStr, start_time, tz),
-            end_time: buildTimestamp(dateStr, end_time, tz),
+            end_time: buildTimestamp(endDateStr, end_time, tz),
         })
         .eq("id", id)
         .eq("organization_id", orgId);
@@ -669,13 +671,12 @@ export async function getDetailedStatsByRange(
             const emp = Array.isArray(s.employee) ? s.employee[0] : s.employee as any;
             const rate = s.hourly_rate ?? (emp as any)?.hourly_rate ?? 0;
             return {
-                date: s.start_time.slice(0, 10),
-                start: s.start_time.slice(11, 16),
-                end: s.end_time.slice(11, 16),
+                startTs: s.start_time,
+                endTs: s.end_time,
                 hours,
                 earned: hours * rate,
             };
-        }).sort((a, b) => a.date.localeCompare(b.date))
+        }).sort((a, b) => a.startTs.localeCompare(b.startTs))
         : undefined;
 
     return {

@@ -6,11 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Coins, Users } from "lucide-react";
 import { useLanguage } from "@/context/language-context";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { format } from "date-fns";
 
 interface ShiftRow {
-    date: string;
-    start: string;
-    end: string;
+    startTs: string;
+    endTs: string;
     hours: number;
     earned: number;
 }
@@ -152,9 +152,9 @@ export function StatsViewClient({ data, period, rangeLabel, shifts }: {
                             <TableBody>
                                 {shifts.map((s, i) => (
                                     <TableRow key={i}>
-                                        <TableCell className="font-mono">{s.date}</TableCell>
-                                        <TableCell className="font-mono">{s.start}</TableCell>
-                                        <TableCell className="font-mono">{s.end}</TableCell>
+                                        <TableCell className="font-mono">{format(new Date(s.startTs), "MMM d")}</TableCell>
+                                        <TableCell className="font-mono">{format(new Date(s.startTs), "HH:mm")}</TableCell>
+                                        <TableCell className="font-mono">{format(new Date(s.endTs), "HH:mm")}</TableCell>
                                         <TableCell className="text-right font-mono">{s.hours.toFixed(1)} h</TableCell>
                                         <TableCell className="text-right font-mono font-bold text-green-700 dark:text-green-400">
                                             {Math.round(s.earned)} PLN

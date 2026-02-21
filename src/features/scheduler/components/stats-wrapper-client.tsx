@@ -11,7 +11,7 @@ import Link from "next/link";
 import { StatsViewClient } from "@/features/scheduler/components/stats-view-client";
 import { useLanguage } from "@/context/language-context";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { format, addMonths, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, endOfDay } from "date-fns";
 import { uk, pl, enUS } from "date-fns/locale";
 import { getDetailedStats, getDetailedStatsByRange } from "@/features/scheduler/actions";
 import { getEmployees } from "@/features/employees/actions";
@@ -153,7 +153,7 @@ export function StatsWrapperClient({ monthStats: initialMonthStats, allTimeStats
                                         <Calendar
                                             mode="single"
                                             selected={toDate}
-                                            onSelect={setToDate}
+                                            onSelect={(date) => setToDate(date ? endOfDay(date) : undefined)}
                                             initialFocus
                                         />
                                     </PopoverContent>
