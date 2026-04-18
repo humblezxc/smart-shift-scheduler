@@ -26,7 +26,7 @@ interface Props {
     label?: string;
 }
 
-export function RejectShiftButton({ employeeId, date, shareToken, label }: Props) {
+export function RejectShiftButton({ date, shareToken, label }: Props) {
     const [loading, setLoading] = useState(false);
     const { t } = useLanguage();
 
@@ -34,7 +34,6 @@ export function RejectShiftButton({ employeeId, date, shareToken, label }: Props
         if (!shareToken) return;
         setLoading(true);
         const res = await createPublicTimeOffRequest({
-            employee_id: employeeId,
             share_token: shareToken,
             date: format(date, "yyyy-MM-dd"),
             reason: "Rejected assigned shift",
