@@ -2,7 +2,8 @@
 
 import { createSupabaseServerClient, requireOrganization, requireRole, getOrgScheduleConfig } from "@/lib/supabase-server";
 import { shiftSchema, ShiftFormValues, timeOffSchema } from "./schemas";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { cacheTags } from "@/lib/supabase-admin";
 import { addDays, startOfWeek, isSunday, format, startOfDay, endOfDay, isBefore, getISOWeek, startOfMonth, endOfMonth } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { z } from "zod";
@@ -546,85 +547,47 @@ export async function toggleHoliday(date: Date) {
     } else {
         await supabase.from("holidays").insert({ date: dateStr, name: "Holiday", organization_id: orgId });
     }
+    updateTag(cacheTags.holidays(orgId));
     revalidatePath("/");
 }
 
-export async function getDetailedStats(period: 'month' | 'all', date: Date) {
+type StatsResult = {
+    byEmployee: Array<{ employee_id: number; name: string; role: string; hours: number; earned: number }>;
+    staffTotalEarned: number;
+    totalShifts: number;
+};
+
+type StatsBreakdown = Array<{ startTs: string; endTs: string; hours: number; earned: number }>;
+
+async function callStatsRpc(orgId: string, start: Date | null, end: Date | null, employeeId?: number): Promise<StatsResult | null> {
     const supabase = await createSupabaseServerClient();
-    const orgId = await getOrgId();
-
-    let query = supabase
-        .from("shifts")
-        .select(`
-      id,
-      start_time,
-      end_time,
-      hourly_rate,
-      employee:employees (
-        id,
-        first_name,
-        last_name,
-        role,
-        hourly_rate
-      )
-    `)
-        .eq("organization_id", orgId);
-
-    if (period === 'month') {
-        const start = startOfMonth(date);
-        const end = endOfMonth(date);
-        query = query
-            .gte("start_time", start.toISOString())
-            .lte("start_time", end.toISOString());
-    }
-
-    const { data: shifts, error } = await query;
-
-    if (error || !shifts) return null;
-
-    const statsByEmployee: Record<number, {
-        name: string,
-        role: string,
-        hours: number,
-        earned: number
-    }> = {};
-
-    let staffTotalEarned = 0;
-
-    shifts.forEach((shift) => {
-        const employeeData = shift.employee;
-        const emp = Array.isArray(employeeData) ? employeeData[0] : employeeData;
-        const safeEmp = emp as any;
-
-        if (!safeEmp) return;
-
-        const start = new Date(shift.start_time).getTime();
-        const end = new Date(shift.end_time).getTime();
-        const hours = (end - start) / (1000 * 60 * 60);
-
-        const rate = shift.hourly_rate ?? safeEmp.hourly_rate ?? 0;
-        const earned = hours * rate;
-
-        const empId = safeEmp.id;
-        const empName = `${safeEmp.first_name} ${safeEmp.last_name}`;
-        const role = safeEmp.role;
-
-        if (!statsByEmployee[empId]) {
-            statsByEmployee[empId] = { name: empName, role, hours: 0, earned: 0 };
-        }
-        statsByEmployee[empId].hours += hours;
-        statsByEmployee[empId].earned += earned;
-
-        if (role === 'student' || role === 'cashier') {
-            staffTotalEarned += earned;
-        }
+    const { data, error } = await supabase.rpc("get_shift_stats", {
+        p_org_id: orgId,
+        p_start: start ? start.toISOString() : null,
+        p_end: end ? end.toISOString() : null,
+        p_employee_id: employeeId ?? null,
     });
+    if (error || !data || (data as { error?: string }).error) return null;
+    return data as StatsResult;
+}
 
-    return {
-        byEmployee: Object.values(statsByEmployee),
-        staffTotalEarned: Math.round(staffTotalEarned),
-        totalShifts: shifts.length
-    };
+async function callBreakdownRpc(orgId: string, start: Date, end: Date, employeeId: number): Promise<StatsBreakdown> {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.rpc("get_shift_breakdown", {
+        p_org_id: orgId,
+        p_start: start.toISOString(),
+        p_end: end.toISOString(),
+        p_employee_id: employeeId,
+    });
+    if (error || !data) return [];
+    return data as StatsBreakdown;
+}
+
+export async function getDetailedStats(period: 'month' | 'all', date: Date) {
+    const orgId = await getOrgId();
+    const start = period === 'month' ? startOfMonth(date) : null;
+    const end = period === 'month' ? endOfMonth(date) : null;
+    return callStatsRpc(orgId, start, end);
 }
 
 export async function getDetailedStatsByRange(
@@ -632,73 +595,17 @@ export async function getDetailedStatsByRange(
     endDate: Date,
     employeeId?: string
 ) {
-    const supabase = await createSupabaseServerClient();
     const orgId = await getOrgId();
+    const empIdNum = employeeId ? Number(employeeId) : undefined;
 
-    let query = supabase
-        .from("shifts")
-        .select(`
-      id, start_time, end_time, hourly_rate,
-      employee:employees (id, first_name, last_name, role, hourly_rate)
-    `)
-        .eq("organization_id", orgId)
-        .gte("start_time", startDate.toISOString())
-        .lte("start_time", endDate.toISOString());
+    const stats = await callStatsRpc(orgId, startDate, endDate, empIdNum);
+    if (!stats) return null;
 
-    if (employeeId) {
-        query = query.eq("employee_id", employeeId);
-    }
-
-    const { data: shifts, error } = await query;
-    if (error || !shifts) return null;
-
-    const statsByEmployee: Record<string, { name: string; role: string; hours: number; earned: number }> = {};
-    let staffTotalEarned = 0;
-
-    shifts.forEach((shift) => {
-        const employeeData = shift.employee;
-        const emp = Array.isArray(employeeData) ? employeeData[0] : employeeData;
-        const safeEmp = emp as any;
-        if (!safeEmp) return;
-
-        const hours = (new Date(shift.end_time).getTime() - new Date(shift.start_time).getTime()) / 3_600_000;
-        const rate = shift.hourly_rate ?? safeEmp.hourly_rate ?? 0;
-        const earned = hours * rate;
-        const empId = safeEmp.id;
-        const empName = `${safeEmp.first_name} ${safeEmp.last_name}`;
-        const role = safeEmp.role;
-
-        if (!statsByEmployee[empId]) {
-            statsByEmployee[empId] = { name: empName, role, hours: 0, earned: 0 };
-        }
-        statsByEmployee[empId].hours += hours;
-        statsByEmployee[empId].earned += earned;
-
-        if (role === 'student' || role === 'cashier') {
-            staffTotalEarned += earned;
-        }
-    });
-
-    const shiftBreakdown = employeeId
-        ? shifts.map((s) => {
-            const hours = (new Date(s.end_time).getTime() - new Date(s.start_time).getTime()) / 3_600_000;
-            const emp = Array.isArray(s.employee) ? s.employee[0] : s.employee as any;
-            const rate = s.hourly_rate ?? (emp as any)?.hourly_rate ?? 0;
-            return {
-                startTs: s.start_time,
-                endTs: s.end_time,
-                hours,
-                earned: hours * rate,
-            };
-        }).sort((a, b) => a.startTs.localeCompare(b.startTs))
+    const shifts = empIdNum !== undefined
+        ? await callBreakdownRpc(orgId, startDate, endDate, empIdNum)
         : undefined;
 
-    return {
-        byEmployee: Object.values(statsByEmployee),
-        staffTotalEarned: Math.round(staffTotalEarned),
-        totalShifts: shifts.length,
-        shifts: shiftBreakdown,
-    };
+    return { ...stats, shifts };
 }
 
 export async function getMonthShifts(date: Date) {

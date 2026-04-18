@@ -3,50 +3,28 @@
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient, requireOrganization, requireRole } from "@/lib/supabase-server";
 import { employeeSchema, EmployeeFormValues } from "./schemas";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { canAddEmployee, SubscriptionTier } from "@/lib/stripe";
+import { cacheTags } from "@/lib/supabase-admin";
+import { fetchEmployeesForOrg, fetchArchivedEmployeesForOrg } from "@/lib/cached-queries";
 
 async function getOrgId() {
     const userOrg = await requireOrganization();
     return userOrg.organization_id;
 }
 
+function invalidateEmployees(orgId: string) {
+    updateTag(cacheTags.employees(orgId));
+}
+
 export async function getEmployees(options: { includeArchived?: boolean } = {}) {
-    const supabase = await createSupabaseServerClient();
     const orgId = await getOrgId();
-
-    let query = supabase
-        .from("employees")
-        .select("*")
-        .eq("organization_id", orgId)
-        .order("first_name");
-
-    if (!options.includeArchived) {
-        query = query.is("archived_at", null);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-        return [];
-    }
-
-    return data || [];
+    return fetchEmployeesForOrg(orgId, options.includeArchived === true);
 }
 
 export async function getArchivedEmployees() {
-    const supabase = await createSupabaseServerClient();
     const orgId = await getOrgId();
-
-    const { data, error } = await supabase
-        .from("employees")
-        .select("*")
-        .eq("organization_id", orgId)
-        .not("archived_at", "is", null)
-        .order("archived_at", { ascending: false });
-
-    if (error) return [];
-    return data || [];
+    return fetchArchivedEmployeesForOrg(orgId);
 }
 
 export async function createEmployee(data: EmployeeFormValues) {
@@ -89,6 +67,7 @@ export async function createEmployee(data: EmployeeFormValues) {
         return { error: "Database error: Could not save employee" };
     }
 
+    invalidateEmployees(orgId);
     revalidatePath("/");
 
     return { success: true };
@@ -117,6 +96,7 @@ export async function updateEmployee(id: number, data: EmployeeFormValues) {
         return { error: "Database error: Could not update employee" };
     }
 
+    invalidateEmployees(orgId);
     revalidatePath("/");
 
     return { success: true };
@@ -135,6 +115,7 @@ export async function deleteEmployee(id: number) {
         return { error: data?.error || "Database error: Could not archive employee" };
     }
 
+    invalidateEmployees(userOrg.organization_id);
     revalidatePath("/");
     revalidatePath("/stats");
 
@@ -154,6 +135,7 @@ export async function restoreEmployee(id: number) {
         return { error: data?.error || "Database error: Could not restore employee" };
     }
 
+    invalidateEmployees(userOrg.organization_id);
     revalidatePath("/");
     revalidatePath("/settings");
 

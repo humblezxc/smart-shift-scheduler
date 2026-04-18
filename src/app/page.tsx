@@ -3,8 +3,9 @@ import { getShiftsForWeek } from "@/features/scheduler/actions";
 import { getEmployees } from "@/features/employees/actions";
 import { createSupabaseServerClient, requireOrganization, UserRole, checkOnboardingStatus, getOrgScheduleConfig } from "@/lib/supabase-server";
 import { computeWeekStats } from "@/lib/shift-utils";
+import { fetchHolidaysForRange } from "@/lib/cached-queries";
 import { DashboardView } from "@/features/scheduler/components/dashboard-view";
-import { format } from "date-fns";
+import { format, startOfYear, endOfYear } from "date-fns";
 import { redirect } from "next/navigation";
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
@@ -19,10 +20,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const days = getWeekDays(start);
   const startStr = format(start, "yyyy-MM-dd");
   const endStr = format(end, "yyyy-MM-dd");
+  const yearStart = format(startOfYear(currentDate), "yyyy-MM-dd");
+  const yearEnd = format(endOfYear(currentDate), "yyyy-MM-dd");
 
   const supabase = await createSupabaseServerClient();
 
-  const [onboarding, employees, timeOffsRes, shifts, holidaysRes] = await Promise.all([
+  const [onboarding, employees, timeOffsRes, shifts, yearHolidays] = await Promise.all([
     checkOnboardingStatus(orgId),
     getEmployees(),
     supabase
@@ -32,18 +35,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         .gte("date", startStr)
         .order("date", { ascending: true }),
     getShiftsForWeek(start, end),
-    supabase
-        .from("holidays")
-        .select("date, name")
-        .eq("organization_id", orgId)
-        .gte("date", startStr)
-        .lte("date", endStr),
+    fetchHolidaysForRange(orgId, yearStart, yearEnd),
   ]);
 
   if (onboarding.needsOnboarding) {
     redirect("/onboarding");
   }
 
+  const holidays = yearHolidays.filter(h => h.date >= startStr && h.date <= endStr);
   const stats = computeWeekStats(shifts);
   const userRole = userOrg.role as UserRole;
 
@@ -54,7 +53,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           employees={employees}
           timeOffs={timeOffsRes.data || []}
           shifts={shifts}
-          holidays={holidaysRes.data || []}
+          holidays={holidays}
           days={days}
           userRole={userRole}
           weekStartsOn={weekStartsOn}
