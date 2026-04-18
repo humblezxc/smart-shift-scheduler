@@ -11,7 +11,30 @@ async function getOrgId() {
     return userOrg.organization_id;
 }
 
-export async function getEmployees() {
+export async function getEmployees(options: { includeArchived?: boolean } = {}) {
+    const supabase = await createSupabaseServerClient();
+    const orgId = await getOrgId();
+
+    let query = supabase
+        .from("employees")
+        .select("*")
+        .eq("organization_id", orgId)
+        .order("first_name");
+
+    if (!options.includeArchived) {
+        query = query.is("archived_at", null);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+        return [];
+    }
+
+    return data || [];
+}
+
+export async function getArchivedEmployees() {
     const supabase = await createSupabaseServerClient();
     const orgId = await getOrgId();
 
@@ -19,12 +42,10 @@ export async function getEmployees() {
         .from("employees")
         .select("*")
         .eq("organization_id", orgId)
-        .order("first_name");
+        .not("archived_at", "is", null)
+        .order("archived_at", { ascending: false });
 
-    if (error) {
-        return [];
-    }
-
+    if (error) return [];
     return data || [];
 }
 
@@ -52,7 +73,8 @@ export async function createEmployee(data: EmployeeFormValues) {
     const { count } = await supabase
         .from("employees")
         .select("*", { count: "exact", head: true })
-        .eq("organization_id", orgId);
+        .eq("organization_id", orgId)
+        .is("archived_at", null);
 
     if (!canAddEmployee(tier, count || 0)) {
         return { error: "Employee limit reached. Upgrade your plan to add more employees." };
@@ -103,20 +125,37 @@ export async function updateEmployee(id: number, data: EmployeeFormValues) {
 export async function deleteEmployee(id: number) {
     const { error: roleError, userOrg } = await requireRole('admin');
     if (roleError || !userOrg) return { error: roleError || "Not authorized" };
-    const orgId = userOrg.organization_id;
     const supabase = await createSupabaseServerClient();
 
-    const { error } = await supabase
-        .from("employees")
-        .delete()
-        .eq("id", id)
-        .eq("organization_id", orgId);
+    const { data, error } = await supabase
+        .rpc("soft_delete_employee", { p_employee_id: id })
+        .single<{ success: boolean; error?: string; future_shifts_removed?: number }>();
 
-    if (error) {
-        return { error: "Database error: Could not delete employee" };
+    if (error || !data?.success) {
+        return { error: data?.error || "Database error: Could not archive employee" };
     }
 
     revalidatePath("/");
+    revalidatePath("/stats");
+
+    return { success: true, futureShiftsRemoved: data.future_shifts_removed ?? 0 };
+}
+
+export async function restoreEmployee(id: number) {
+    const { error: roleError, userOrg } = await requireRole('admin');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+    const supabase = await createSupabaseServerClient();
+
+    const { data, error } = await supabase
+        .rpc("restore_employee", { p_employee_id: id })
+        .single<{ success: boolean; error?: string }>();
+
+    if (error || !data?.success) {
+        return { error: data?.error || "Database error: Could not restore employee" };
+    }
+
+    revalidatePath("/");
+    revalidatePath("/settings");
 
     return { success: true };
 }
