@@ -6,6 +6,10 @@ export interface Employee {
     share_token: string;
     max_hours_per_week: number;
     hourly_rate: number;
+    archived_at?: string | null;
+    archived_by?: string | null;
+    share_token_expires_at?: string | null;
+    share_token_revoked?: boolean;
 }
 
 export interface Shift {

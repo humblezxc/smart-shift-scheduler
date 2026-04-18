@@ -5,8 +5,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Coins, Users } from "lucide-react";
 import { useLanguage } from "@/context/language-context";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import dynamic from "next/dynamic";
 import { format } from "date-fns";
+
+const StatsBarChart = dynamic(() => import("./stats-bar-chart"), {
+    ssr: false,
+    loading: () => <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground">…</div>,
+});
 
 interface ShiftRow {
     startTs: string;
@@ -79,20 +84,17 @@ export function StatsViewClient({ data, period, rangeLabel, shifts }: {
                         <CardTitle>{t("stats.hours")} & {t("stats.earned")}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <BarChart data={data.byEmployee.sort((a: any, b: any) => b.earned - a.earned).map((emp: any) => ({
-                                name: emp.name.split(" ")[0],
-                                hours: Math.round(emp.hours * 10) / 10,
-                                cost: Math.round(emp.earned),
-                            }))}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" fontSize={12} />
-                                <YAxis fontSize={12} />
-                                <Tooltip />
-                                <Bar dataKey="hours" fill="hsl(var(--chart-2))" name={t("stats.hours") || "Hours"} radius={[4, 4, 0, 0]} />
-                                <Bar dataKey="cost" fill="hsl(var(--chart-1))" name="PLN" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <StatsBarChart
+                            data={data.byEmployee
+                                .slice()
+                                .sort((a: any, b: any) => b.earned - a.earned)
+                                .map((emp: any) => ({
+                                    name: emp.name.split(" ")[0],
+                                    hours: Math.round(emp.hours * 10) / 10,
+                                    cost: Math.round(emp.earned),
+                                }))}
+                            hoursLabel={t("stats.hours") || "Hours"}
+                        />
                     </CardContent>
                 </Card>
             )}

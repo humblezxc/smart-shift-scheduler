@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -15,6 +16,15 @@ export function CalendarPicker({ weekStartsOn }: CalendarPickerProps) {
     const dateParam = searchParams.get("date");
     const date = dateParam ? new Date(dateParam) : new Date();
 
+    const lastPrefetchRef = useRef<string | null>(null);
+
+    const prefetchDate = useCallback((day: Date) => {
+        const key = format(day, "yyyy-MM-dd");
+        if (lastPrefetchRef.current === key) return;
+        lastPrefetchRef.current = key;
+        router.prefetch(`/?date=${key}`);
+    }, [router]);
+
     return (
         <Calendar
             mode="single"
@@ -24,6 +34,8 @@ export function CalendarPicker({ weekStartsOn }: CalendarPickerProps) {
                     router.push(`/?date=${format(newDate, "yyyy-MM-dd")}`);
                 }
             }}
+            onDayMouseEnter={prefetchDate}
+            onDayFocus={prefetchDate}
             weekStartsOn={weekStartsOn}
             className="rounded-md border mx-auto"
         />

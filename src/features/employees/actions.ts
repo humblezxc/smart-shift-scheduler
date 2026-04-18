@@ -3,29 +3,28 @@
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient, requireOrganization, requireRole } from "@/lib/supabase-server";
 import { employeeSchema, EmployeeFormValues } from "./schemas";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { canAddEmployee, SubscriptionTier } from "@/lib/stripe";
+import { cacheTags } from "@/lib/supabase-admin";
+import { fetchEmployeesForOrg, fetchArchivedEmployeesForOrg } from "@/lib/cached-queries";
 
 async function getOrgId() {
     const userOrg = await requireOrganization();
     return userOrg.organization_id;
 }
 
-export async function getEmployees() {
-    const supabase = await createSupabaseServerClient();
+function invalidateEmployees(orgId: string) {
+    updateTag(cacheTags.employees(orgId));
+}
+
+export async function getEmployees(options: { includeArchived?: boolean } = {}) {
     const orgId = await getOrgId();
+    return fetchEmployeesForOrg(orgId, options.includeArchived === true);
+}
 
-    const { data, error } = await supabase
-        .from("employees")
-        .select("*")
-        .eq("organization_id", orgId)
-        .order("first_name");
-
-    if (error) {
-        return [];
-    }
-
-    return data || [];
+export async function getArchivedEmployees() {
+    const orgId = await getOrgId();
+    return fetchArchivedEmployeesForOrg(orgId);
 }
 
 export async function createEmployee(data: EmployeeFormValues) {
@@ -52,7 +51,8 @@ export async function createEmployee(data: EmployeeFormValues) {
     const { count } = await supabase
         .from("employees")
         .select("*", { count: "exact", head: true })
-        .eq("organization_id", orgId);
+        .eq("organization_id", orgId)
+        .is("archived_at", null);
 
     if (!canAddEmployee(tier, count || 0)) {
         return { error: "Employee limit reached. Upgrade your plan to add more employees." };
@@ -67,6 +67,7 @@ export async function createEmployee(data: EmployeeFormValues) {
         return { error: "Database error: Could not save employee" };
     }
 
+    invalidateEmployees(orgId);
     revalidatePath("/");
 
     return { success: true };
@@ -95,6 +96,7 @@ export async function updateEmployee(id: number, data: EmployeeFormValues) {
         return { error: "Database error: Could not update employee" };
     }
 
+    invalidateEmployees(orgId);
     revalidatePath("/");
 
     return { success: true };
@@ -103,20 +105,39 @@ export async function updateEmployee(id: number, data: EmployeeFormValues) {
 export async function deleteEmployee(id: number) {
     const { error: roleError, userOrg } = await requireRole('admin');
     if (roleError || !userOrg) return { error: roleError || "Not authorized" };
-    const orgId = userOrg.organization_id;
     const supabase = await createSupabaseServerClient();
 
-    const { error } = await supabase
-        .from("employees")
-        .delete()
-        .eq("id", id)
-        .eq("organization_id", orgId);
+    const { data, error } = await supabase
+        .rpc("soft_delete_employee", { p_employee_id: id })
+        .single<{ success: boolean; error?: string; future_shifts_removed?: number }>();
 
-    if (error) {
-        return { error: "Database error: Could not delete employee" };
+    if (error || !data?.success) {
+        return { error: data?.error || "Database error: Could not archive employee" };
     }
 
+    invalidateEmployees(userOrg.organization_id);
     revalidatePath("/");
+    revalidatePath("/stats");
+
+    return { success: true, futureShiftsRemoved: data.future_shifts_removed ?? 0 };
+}
+
+export async function restoreEmployee(id: number) {
+    const { error: roleError, userOrg } = await requireRole('admin');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+    const supabase = await createSupabaseServerClient();
+
+    const { data, error } = await supabase
+        .rpc("restore_employee", { p_employee_id: id })
+        .single<{ success: boolean; error?: string }>();
+
+    if (error || !data?.success) {
+        return { error: data?.error || "Database error: Could not restore employee" };
+    }
+
+    invalidateEmployees(userOrg.organization_id);
+    revalidatePath("/");
+    revalidatePath("/settings");
 
     return { success: true };
 }

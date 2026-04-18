@@ -2,7 +2,8 @@
 
 import { createSupabaseServerClient, requireOrganization, requireRole, getOrgScheduleConfig } from "@/lib/supabase-server";
 import { shiftSchema, ShiftFormValues, timeOffSchema } from "./schemas";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { cacheTags } from "@/lib/supabase-admin";
 import { addDays, startOfWeek, isSunday, format, startOfDay, endOfDay, isBefore, getISOWeek, startOfMonth, endOfMonth } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { z } from "zod";
@@ -34,12 +35,8 @@ export async function getShiftsForWeek(startOfWeek: Date, endOfWeek: Date) {
     const { data, error } = await supabase
         .from("shifts")
         .select(`
-      *,
-      employee:employees (
-        first_name,
-        last_name,
-        role
-      )
+      id, employee_id, start_time, end_time, hourly_rate,
+      employee:employees ( first_name, last_name, role )
     `)
         .eq("organization_id", orgId)
         .gte("start_time", startOfDay(startOfWeek).toISOString())
@@ -51,6 +48,7 @@ export async function getShiftsForWeek(startOfWeek: Date, endOfWeek: Date) {
 
     return data || [];
 }
+
 
 export async function createShift(data: ShiftFormValues) {
     const { error: roleError, userOrg } = await requireRole('manager');
@@ -102,8 +100,9 @@ export async function generateSchedule(dateStr?: string) {
 
     const { data: employees } = await supabase
         .from("employees")
-        .select("*")
-        .eq("organization_id", orgId);
+        .select("id, role, hourly_rate")
+        .eq("organization_id", orgId)
+        .is("archived_at", null);
 
     if (!employees || employees.length === 0) return { error: "No employees found" };
 
@@ -117,14 +116,24 @@ export async function generateSchedule(dateStr?: string) {
     const yearEnd = format(endOfCurrentWeek, "yyyy-12-31");
 
     const [timeOffsReq, holidaysReq, existingShiftsReq] = await Promise.all([
-        supabase.from("time_off_requests").select("*").eq("organization_id", orgId).gte("date", startOfCurrentWeek.toISOString()).lte("date", endOfCurrentWeek.toISOString()),
-        supabase.from("holidays").select("*").eq("organization_id", orgId).gte("date", yearStart).lte("date", yearEnd),
-        supabase.from("shifts").select("*").eq("organization_id", orgId).gte("start_time", startOfCurrentWeek.toISOString()).lte("start_time", endOfDay(endOfCurrentWeek).toISOString())
+        supabase.from("time_off_requests").select("employee_id, date").eq("organization_id", orgId).gte("date", format(startOfCurrentWeek, "yyyy-MM-dd")).lte("date", format(endOfCurrentWeek, "yyyy-MM-dd")),
+        supabase.from("holidays").select("date").eq("organization_id", orgId).gte("date", yearStart).lte("date", yearEnd),
+        supabase.from("shifts").select("id, employee_id, start_time").eq("organization_id", orgId).gte("start_time", startOfCurrentWeek.toISOString()).lte("start_time", endOfDay(endOfCurrentWeek).toISOString())
     ]);
 
     const timeOffs = timeOffsReq.data || [];
     const holidays = holidaysReq.data || [];
-    let existingShifts = existingShiftsReq.data || [];
+    type ExistingShift = { id: number; employee_id: number; start_time: string; _dateStr: string; _h: number; _m: number; _ms: number };
+    let existingShifts: ExistingShift[] = (existingShiftsReq.data || []).map(s => {
+        const d = new Date(s.start_time);
+        return {
+            ...s,
+            _dateStr: formatInTz(d, "yyyy-MM-dd", tz),
+            _h: parseInt(formatInTz(d, "H", tz), 10),
+            _m: parseInt(formatInTz(d, "m", tz), 10),
+            _ms: d.getTime(),
+        };
+    });
 
     const owners = employees.filter(e => e.role === "owner");
     const managers = employees.filter(e => e.role === "manager");
@@ -152,20 +161,29 @@ export async function generateSchedule(dateStr?: string) {
         primaryEveningWorker = staff[0];
     }
 
-    const newShiftsToInsert: { employee_id: number; organization_id: string; start_time: string; end_time: string, hourly_rate: number }[] = [];
+    type NewShift = { employee_id: number; organization_id: string; start_time: string; end_time: string; hourly_rate: number; _dateStr: string };
+    const newShiftsToInsert: NewShift[] = [];
+    const allIdsToDelete: number[] = [];
 
-    const isAvailable = (empId: number, dateStr: string, startTimeIso: string) => {
-        if (timeOffs.some(t => t.employee_id === empId && t.date === dateStr)) return false;
-        if (existingShifts.some(s => s.employee_id === empId && formatInTz(new Date(s.start_time), "yyyy-MM-dd", tz) === dateStr)) return false;
-        if (newShiftsToInsert.some(s => s.employee_id === empId && formatInTz(new Date(s.start_time), "yyyy-MM-dd", tz) === dateStr)) return false;
+    const timeOffByEmpDate = new Set<string>();
+    for (const t of timeOffs) timeOffByEmpDate.add(`${t.employee_id}|${t.date}`);
+
+    const isAvailable = (empId: number, dateStr: string) => {
+        if (timeOffByEmpDate.has(`${empId}|${dateStr}`)) return false;
+        for (const s of existingShifts) {
+            if (s.employee_id === empId && s._dateStr === dateStr) return false;
+        }
+        for (const s of newShiftsToInsert) {
+            if (s.employee_id === empId && s._dateStr === dateStr) return false;
+        }
         return true;
     };
 
-    const findWorker = (priorityEmp: typeof employees[0] | undefined, backupPool: typeof employees, dateStr: string, slotIso: string) => {
-        if (priorityEmp && isAvailable(priorityEmp.id, dateStr, slotIso)) return priorityEmp;
-        const backup = backupPool.find(e => isAvailable(e.id, dateStr, slotIso));
+    const findWorker = (priorityEmp: typeof employees[0] | undefined, backupPool: typeof employees, dateStr: string) => {
+        if (priorityEmp && isAvailable(priorityEmp.id, dateStr)) return priorityEmp;
+        const backup = backupPool.find(e => isAvailable(e.id, dateStr));
         if (backup) return backup;
-        const manager = managers.find(m => isAvailable(m.id, dateStr, slotIso));
+        const manager = managers.find(m => isAvailable(m.id, dateStr));
         if (manager) return manager;
         return null;
     };
@@ -181,37 +199,22 @@ export async function generateSchedule(dateStr?: string) {
         const dayOfWeek = format(currentDate, 'iiii');
 
         const isSpecialDay = isSun ? !hasHolidayRecord : hasHolidayRecord;
-        const idsToDelete: number[] = [];
 
         existingShifts = existingShifts.filter(shift => {
-            const shiftDateStr = formatInTz(new Date(shift.start_time), "yyyy-MM-dd", tz);
-            if (shiftDateStr !== dateStr) return true;
+            if (shift._dateStr !== dateStr) return true;
+            const h = shift._h;
+            const m = shift._m;
 
-            const h = parseInt(formatInTz(new Date(shift.start_time), "H", tz), 10);
-            const m = parseInt(formatInTz(new Date(shift.start_time), "m", tz), 10);
-
-            let shouldDelete = false;
-
-            if (isSpecialDay) {
-                if ((h === 5 && m === 30) || (h === 14 && m === 30)) {
-                    shouldDelete = true;
-                }
-            } else {
-                if ((h === 9 && m === 0) || (h === 15 && m === 0)) {
-                    shouldDelete = true;
-                }
-            }
+            const shouldDelete = isSpecialDay
+                ? (h === 5 && m === 30) || (h === 14 && m === 30)
+                : (h === 9 && m === 0) || (h === 15 && m === 0);
 
             if (shouldDelete) {
-                idsToDelete.push(shift.id);
+                allIdsToDelete.push(shift.id);
                 return false;
             }
             return true;
         });
-
-        if (idsToDelete.length > 0) {
-            await supabase.from("shifts").delete().in("id", idsToDelete);
-        }
 
         let slots: { start: string, end: string, type: 'morning' | 'evening' }[] = [];
 
@@ -231,19 +234,24 @@ export async function generateSchedule(dateStr?: string) {
             const slotTimestamp = buildTimestamp(dateStr, slot.start, tz);
             const slotTimeMs = new Date(slotTimestamp).getTime();
 
-            const isSlotTaken = existingShifts.some(s => {
-                const sDateStr = formatInTz(new Date(s.start_time), "yyyy-MM-dd", tz);
-                if (sDateStr !== dateStr) return false;
-                const sTime = new Date(s.start_time).getTime();
-                const diffHours = Math.abs(sTime - slotTimeMs) / (1000 * 60 * 60);
-                return diffHours < 3;
-            }) || newShiftsToInsert.some(s => {
-                const sDateStr = formatInTz(new Date(s.start_time), "yyyy-MM-dd", tz);
-                if (sDateStr !== dateStr) return false;
-                const sTime = new Date(s.start_time).getTime();
-                const diffHours = Math.abs(sTime - slotTimeMs) / (1000 * 60 * 60);
-                return diffHours < 3;
-            });
+            let isSlotTaken = false;
+            for (const s of existingShifts) {
+                if (s._dateStr === dateStr && Math.abs(s._ms - slotTimeMs) < 3 * 3600 * 1000) {
+                    isSlotTaken = true;
+                    break;
+                }
+            }
+            if (!isSlotTaken) {
+                for (const s of newShiftsToInsert) {
+                    if (s._dateStr === dateStr) {
+                        const sTime = new Date(s.start_time).getTime();
+                        if (Math.abs(sTime - slotTimeMs) < 3 * 3600 * 1000) {
+                            isSlotTaken = true;
+                            break;
+                        }
+                    }
+                }
+            }
 
             if (isSlotTaken) continue;
 
@@ -251,25 +259,25 @@ export async function generateSchedule(dateStr?: string) {
 
             if (isSpecialDay) {
                 if (slot.type === 'morning') {
-                    assignedWorker = owners.find(o => isAvailable(o.id, dateStr, slotTimestamp));
+                    assignedWorker = owners.find(o => isAvailable(o.id, dateStr));
                 } else {
-                    assignedWorker = managers.find(m => isAvailable(m.id, dateStr, slotTimestamp));
+                    assignedWorker = managers.find(m => isAvailable(m.id, dateStr));
                     if (!assignedWorker) {
-                        assignedWorker = findWorker(primaryEveningWorker, [...reservePool, primaryMorningWorker], dateStr, slotTimestamp);
+                        assignedWorker = findWorker(primaryEveningWorker, [...reservePool, primaryMorningWorker], dateStr);
                     }
                 }
             } else {
                 if (slot.type === 'morning') {
                     if (dayOfWeek === 'Saturday') {
-                        assignedWorker = managers.find(m => isAvailable(m.id, dateStr, slotTimestamp));
+                        assignedWorker = managers.find(m => isAvailable(m.id, dateStr));
                         if (!assignedWorker) {
-                            assignedWorker = findWorker(primaryMorningWorker, [...reservePool, primaryEveningWorker], dateStr, slotTimestamp);
+                            assignedWorker = findWorker(primaryMorningWorker, [...reservePool, primaryEveningWorker], dateStr);
                         }
                     } else {
-                        assignedWorker = findWorker(primaryMorningWorker, [...reservePool, primaryEveningWorker], dateStr, slotTimestamp);
+                        assignedWorker = findWorker(primaryMorningWorker, [...reservePool, primaryEveningWorker], dateStr);
                     }
                 } else {
-                    assignedWorker = findWorker(primaryEveningWorker, [...reservePool, primaryMorningWorker], dateStr, slotTimestamp);
+                    assignedWorker = findWorker(primaryEveningWorker, [...reservePool, primaryMorningWorker], dateStr);
                 }
             }
 
@@ -277,17 +285,26 @@ export async function generateSchedule(dateStr?: string) {
                 newShiftsToInsert.push({
                     employee_id: assignedWorker.id,
                     organization_id: orgId,
-                    start_time: buildTimestamp(dateStr, slot.start, tz),
+                    start_time: slotTimestamp,
                     end_time: buildTimestamp(dateStr, slot.end, tz),
-                    hourly_rate: assignedWorker.hourly_rate || 0
+                    hourly_rate: assignedWorker.hourly_rate || 0,
+                    _dateStr: dateStr,
                 });
             }
         }
     }
 
-    if (newShiftsToInsert.length > 0) {
-        const { error } = await supabase.from("shifts").insert(newShiftsToInsert);
-        if (error) return { error: "Failed to save new shifts" };
+    const [delRes, insRes] = await Promise.all([
+        allIdsToDelete.length > 0
+            ? supabase.from("shifts").delete().in("id", allIdsToDelete)
+            : Promise.resolve({ error: null }),
+        newShiftsToInsert.length > 0
+            ? supabase.from("shifts").insert(newShiftsToInsert.map(({ _dateStr, ...rest }) => rest))
+            : Promise.resolve({ error: null }),
+    ]);
+
+    if (delRes.error || insRes.error) {
+        return { error: "Failed to save new shifts" };
     }
 
     revalidatePath("/");
@@ -377,7 +394,6 @@ export async function moveShiftToDate(shiftId: number, newDate: string) {
         return { error: "Could not move shift" };
     }
 
-    revalidatePath("/");
     return { success: true };
 }
 
@@ -428,7 +444,6 @@ export async function swapShiftTimes(shiftId1: number, shiftId2: number) {
         return { error: "Could not swap shifts" };
     }
 
-    revalidatePath("/");
     return { success: true };
 }
 
@@ -532,85 +547,47 @@ export async function toggleHoliday(date: Date) {
     } else {
         await supabase.from("holidays").insert({ date: dateStr, name: "Holiday", organization_id: orgId });
     }
+    updateTag(cacheTags.holidays(orgId));
     revalidatePath("/");
 }
 
-export async function getDetailedStats(period: 'month' | 'all', date: Date) {
+type StatsResult = {
+    byEmployee: Array<{ employee_id: number; name: string; role: string; hours: number; earned: number }>;
+    staffTotalEarned: number;
+    totalShifts: number;
+};
+
+type StatsBreakdown = Array<{ startTs: string; endTs: string; hours: number; earned: number }>;
+
+async function callStatsRpc(orgId: string, start: Date | null, end: Date | null, employeeId?: number): Promise<StatsResult | null> {
     const supabase = await createSupabaseServerClient();
-    const orgId = await getOrgId();
-
-    let query = supabase
-        .from("shifts")
-        .select(`
-      id,
-      start_time,
-      end_time,
-      hourly_rate,
-      employee:employees (
-        id,
-        first_name,
-        last_name,
-        role,
-        hourly_rate
-      )
-    `)
-        .eq("organization_id", orgId);
-
-    if (period === 'month') {
-        const start = startOfMonth(date);
-        const end = endOfMonth(date);
-        query = query
-            .gte("start_time", start.toISOString())
-            .lte("start_time", end.toISOString());
-    }
-
-    const { data: shifts, error } = await query;
-
-    if (error || !shifts) return null;
-
-    const statsByEmployee: Record<number, {
-        name: string,
-        role: string,
-        hours: number,
-        earned: number
-    }> = {};
-
-    let staffTotalEarned = 0;
-
-    shifts.forEach((shift) => {
-        const employeeData = shift.employee;
-        const emp = Array.isArray(employeeData) ? employeeData[0] : employeeData;
-        const safeEmp = emp as any;
-
-        if (!safeEmp) return;
-
-        const start = new Date(shift.start_time).getTime();
-        const end = new Date(shift.end_time).getTime();
-        const hours = (end - start) / (1000 * 60 * 60);
-
-        const rate = shift.hourly_rate ?? safeEmp.hourly_rate ?? 0;
-        const earned = hours * rate;
-
-        const empId = safeEmp.id;
-        const empName = `${safeEmp.first_name} ${safeEmp.last_name}`;
-        const role = safeEmp.role;
-
-        if (!statsByEmployee[empId]) {
-            statsByEmployee[empId] = { name: empName, role, hours: 0, earned: 0 };
-        }
-        statsByEmployee[empId].hours += hours;
-        statsByEmployee[empId].earned += earned;
-
-        if (role === 'student' || role === 'cashier') {
-            staffTotalEarned += earned;
-        }
+    const { data, error } = await supabase.rpc("get_shift_stats", {
+        p_org_id: orgId,
+        p_start: start ? start.toISOString() : null,
+        p_end: end ? end.toISOString() : null,
+        p_employee_id: employeeId ?? null,
     });
+    if (error || !data || (data as { error?: string }).error) return null;
+    return data as StatsResult;
+}
 
-    return {
-        byEmployee: Object.values(statsByEmployee),
-        staffTotalEarned: Math.round(staffTotalEarned),
-        totalShifts: shifts.length
-    };
+async function callBreakdownRpc(orgId: string, start: Date, end: Date, employeeId: number): Promise<StatsBreakdown> {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.rpc("get_shift_breakdown", {
+        p_org_id: orgId,
+        p_start: start.toISOString(),
+        p_end: end.toISOString(),
+        p_employee_id: employeeId,
+    });
+    if (error || !data) return [];
+    return data as StatsBreakdown;
+}
+
+export async function getDetailedStats(period: 'month' | 'all', date: Date) {
+    const orgId = await getOrgId();
+    const start = period === 'month' ? startOfMonth(date) : null;
+    const end = period === 'month' ? endOfMonth(date) : null;
+    return callStatsRpc(orgId, start, end);
 }
 
 export async function getDetailedStatsByRange(
@@ -618,73 +595,17 @@ export async function getDetailedStatsByRange(
     endDate: Date,
     employeeId?: string
 ) {
-    const supabase = await createSupabaseServerClient();
     const orgId = await getOrgId();
+    const empIdNum = employeeId ? Number(employeeId) : undefined;
 
-    let query = supabase
-        .from("shifts")
-        .select(`
-      id, start_time, end_time, hourly_rate,
-      employee:employees (id, first_name, last_name, role, hourly_rate)
-    `)
-        .eq("organization_id", orgId)
-        .gte("start_time", startDate.toISOString())
-        .lte("start_time", endDate.toISOString());
+    const stats = await callStatsRpc(orgId, startDate, endDate, empIdNum);
+    if (!stats) return null;
 
-    if (employeeId) {
-        query = query.eq("employee_id", employeeId);
-    }
-
-    const { data: shifts, error } = await query;
-    if (error || !shifts) return null;
-
-    const statsByEmployee: Record<string, { name: string; role: string; hours: number; earned: number }> = {};
-    let staffTotalEarned = 0;
-
-    shifts.forEach((shift) => {
-        const employeeData = shift.employee;
-        const emp = Array.isArray(employeeData) ? employeeData[0] : employeeData;
-        const safeEmp = emp as any;
-        if (!safeEmp) return;
-
-        const hours = (new Date(shift.end_time).getTime() - new Date(shift.start_time).getTime()) / 3_600_000;
-        const rate = shift.hourly_rate ?? safeEmp.hourly_rate ?? 0;
-        const earned = hours * rate;
-        const empId = safeEmp.id;
-        const empName = `${safeEmp.first_name} ${safeEmp.last_name}`;
-        const role = safeEmp.role;
-
-        if (!statsByEmployee[empId]) {
-            statsByEmployee[empId] = { name: empName, role, hours: 0, earned: 0 };
-        }
-        statsByEmployee[empId].hours += hours;
-        statsByEmployee[empId].earned += earned;
-
-        if (role === 'student' || role === 'cashier') {
-            staffTotalEarned += earned;
-        }
-    });
-
-    const shiftBreakdown = employeeId
-        ? shifts.map((s) => {
-            const hours = (new Date(s.end_time).getTime() - new Date(s.start_time).getTime()) / 3_600_000;
-            const emp = Array.isArray(s.employee) ? s.employee[0] : s.employee as any;
-            const rate = s.hourly_rate ?? (emp as any)?.hourly_rate ?? 0;
-            return {
-                startTs: s.start_time,
-                endTs: s.end_time,
-                hours,
-                earned: hours * rate,
-            };
-        }).sort((a, b) => a.startTs.localeCompare(b.startTs))
+    const shifts = empIdNum !== undefined
+        ? await callBreakdownRpc(orgId, startDate, endDate, empIdNum)
         : undefined;
 
-    return {
-        byEmployee: Object.values(statsByEmployee),
-        staffTotalEarned: Math.round(staffTotalEarned),
-        totalShifts: shifts.length,
-        shifts: shiftBreakdown,
-    };
+    return { ...stats, shifts };
 }
 
 export async function getMonthShifts(date: Date) {
