@@ -34,12 +34,8 @@ export async function getShiftsForWeek(startOfWeek: Date, endOfWeek: Date) {
     const { data, error } = await supabase
         .from("shifts")
         .select(`
-      *,
-      employee:employees (
-        first_name,
-        last_name,
-        role
-      )
+      id, employee_id, start_time, end_time, hourly_rate,
+      employee:employees ( first_name, last_name, role )
     `)
         .eq("organization_id", orgId)
         .gte("start_time", startOfDay(startOfWeek).toISOString())
@@ -51,6 +47,7 @@ export async function getShiftsForWeek(startOfWeek: Date, endOfWeek: Date) {
 
     return data || [];
 }
+
 
 export async function createShift(data: ShiftFormValues) {
     const { error: roleError, userOrg } = await requireRole('manager');

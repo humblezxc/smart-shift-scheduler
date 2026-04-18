@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -26,18 +27,17 @@ export async function createSupabaseServerClient() {
     );
 }
 
-export async function getUser() {
+export const getUser = cache(async () => {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     return user;
-}
+});
 
-export async function getUserOrganization() {
-    const supabase = await createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
+export const getUserOrganization = cache(async () => {
+    const user = await getUser();
     if (!user) return null;
 
+    const supabase = await createSupabaseServerClient();
     const { data: userOrg } = await supabase
         .from('user_organizations')
         .select('organization_id, role, organizations:organizations(id, name, slug)')
@@ -52,7 +52,17 @@ export async function getUserOrganization() {
         role: userOrg.role,
         organizations: org ?? null,
     };
-}
+});
+
+export const getOrgSettings = cache(async (orgId: string) => {
+    const supabase = await createSupabaseServerClient();
+    const { data } = await supabase
+        .from('organization_settings')
+        .select('timezone, currency, week_starts_on, onboarding_completed')
+        .eq('organization_id', orgId)
+        .single();
+    return data;
+});
 
 export async function requireAuth() {
     const user = await getUser();
@@ -114,36 +124,27 @@ export async function checkRole(requiredRole: UserRole): Promise<{ allowed: bool
 }
 
 export async function checkOnboardingStatus(orgId: string): Promise<{ needsOnboarding: boolean }> {
-    const supabase = await createSupabaseServerClient();
-
-    const { data: settings } = await supabase
-        .from('organization_settings')
-        .select('onboarding_completed')
-        .eq('organization_id', orgId)
-        .single();
+    const settings = await getOrgSettings(orgId);
 
     if (settings?.onboarding_completed) {
         return { needsOnboarding: false };
     }
 
+    const supabase = await createSupabaseServerClient();
     const { count } = await supabase
         .from('employees')
         .select('*', { count: 'exact', head: true })
-        .eq('organization_id', orgId);
+        .eq('organization_id', orgId)
+        .is('archived_at', null);
 
     return { needsOnboarding: (count ?? 0) === 0 };
 }
 
 export async function getOrgScheduleConfig(orgId: string) {
-    const supabase = await createSupabaseServerClient();
-    const { data } = await supabase
-        .from("organization_settings")
-        .select("timezone, week_starts_on")
-        .eq("organization_id", orgId)
-        .single();
+    const settings = await getOrgSettings(orgId);
     return {
-        timezone: data?.timezone || "UTC",
-        weekStartsOn: (data?.week_starts_on ?? 1) as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+        timezone: settings?.timezone || "UTC",
+        weekStartsOn: (settings?.week_starts_on ?? 1) as 0 | 1 | 2 | 3 | 4 | 5 | 6,
     };
 }
 
