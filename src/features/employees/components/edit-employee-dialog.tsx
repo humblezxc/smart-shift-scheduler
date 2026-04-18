@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +13,18 @@ import {
     DialogTitle,
     DialogFooter,
 } from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Archive } from "lucide-react";
 import {
     Form,
     FormControl,
@@ -83,7 +94,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange }: EditEmploye
         }
     }
 
-    async function onDelete() {
+    async function onArchive() {
         setIsDeleting(true);
         const result = await deleteEmployee(employee.id);
         setIsDeleting(false);
@@ -91,7 +102,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange }: EditEmploye
         if (result.error) {
             toast.error(result.error);
         } else {
-            toast.success(t("common.delete") || "Employee deleted");
+            toast.success(t("settings.archived") !== "settings.archived" ? t("settings.archived") : "Employee moved to Former Employees");
             onOpenChange(false);
         }
     }
@@ -198,16 +209,39 @@ export function EditEmployeeDialog({ employee, open, onOpenChange }: EditEmploye
                         </div>
 
                         <DialogFooter className="flex flex-row justify-between items-center w-full pt-4 gap-2">
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                onClick={onDelete}
-                                disabled={isDeleting}
-                                className="flex-1"
-                            >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                {t("common.delete")}
-                            </Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        disabled={isDeleting}
+                                        className="flex-1 text-amber-700 hover:text-amber-800 dark:text-amber-400 border-amber-300 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                                    >
+                                        <Archive className="w-4 h-4 mr-2" />
+                                        {t("settings.archive") !== "settings.archive" ? t("settings.archive") : "Move to Former"}
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>
+                                            {t("settings.archiveConfirmTitle") !== "settings.archiveConfirmTitle" ? t("settings.archiveConfirmTitle") : "Archive this employee?"}
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            {t("settings.archiveConfirmDesc") !== "settings.archiveConfirmDesc"
+                                                ? t("settings.archiveConfirmDesc")
+                                                : "Past shifts and statistics are preserved. They won't appear on the active roster or get auto-assigned. You can reactivate them from Settings."}
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                                        <AlertDialogAction onClick={onArchive} disabled={isDeleting}>
+                                            {isDeleting
+                                                ? (t("common.saving") || "Saving...")
+                                                : (t("settings.archiveConfirm") !== "settings.archiveConfirm" ? t("settings.archiveConfirm") : "Move to Former")}
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                             <Button type="submit" className="flex-1" disabled={isSubmitting}>
                                 {isSubmitting ? (t("common.saving") || "Saving...") : t("forms.save_changes")}
                             </Button>

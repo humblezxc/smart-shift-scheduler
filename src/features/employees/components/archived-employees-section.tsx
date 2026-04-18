@@ -27,21 +27,24 @@ export function ArchivedEmployeesSection({ employees, canManage }: Props) {
     const { t } = useLanguage();
     const [isPending, startTransition] = useTransition();
 
+    const titleText = t("settings.archivedEmployees") !== "settings.archivedEmployees"
+        ? t("settings.archivedEmployees")
+        : "Former Employees";
+    const reactivateLabel = t("settings.reactivate") !== "settings.reactivate"
+        ? t("settings.reactivate")
+        : "Reactivate";
+
     if (!employees || employees.length === 0) {
         return (
             <Card>
                 <CardHeader className="flex-row items-center gap-2 space-y-0">
                     <Archive className="w-5 h-5 text-muted-foreground" />
-                    <CardTitle className="text-base">
-                        {t("settings.archivedEmployees") !== "settings.archivedEmployees"
-                            ? t("settings.archivedEmployees")
-                            : "Archived Employees"}
-                    </CardTitle>
+                    <CardTitle className="text-base">{titleText}</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground">
                     {t("settings.noArchivedEmployees") !== "settings.noArchivedEmployees"
                         ? t("settings.noArchivedEmployees")
-                        : "No archived employees. Removed employees preserve their historical shifts and stats."}
+                        : "No former employees. When you archive someone they'll show up here with their past shifts preserved."}
                 </CardContent>
             </Card>
         );
@@ -53,7 +56,10 @@ export function ArchivedEmployeesSection({ employees, canManage }: Props) {
             if (res.error) {
                 toast.error(res.error);
             } else {
-                toast.success(`${name} restored`);
+                const msg = t("settings.reactivated") !== "settings.reactivated"
+                    ? t("settings.reactivated")
+                    : "Employee reactivated";
+                toast.success(`${name}: ${msg}`);
             }
         });
     };
@@ -62,17 +68,13 @@ export function ArchivedEmployeesSection({ employees, canManage }: Props) {
         <Card>
             <CardHeader className="flex-row items-center gap-2 space-y-0">
                 <Archive className="w-5 h-5 text-muted-foreground" />
-                <CardTitle className="text-base">
-                    {t("settings.archivedEmployees") !== "settings.archivedEmployees"
-                        ? t("settings.archivedEmployees")
-                        : "Archived Employees"}
-                </CardTitle>
+                <CardTitle className="text-base">{titleText}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
                 <p className="text-xs text-muted-foreground mb-3">
                     {t("settings.archivedDesc") !== "settings.archivedDesc"
                         ? t("settings.archivedDesc")
-                        : "Former employees keep historical shifts and stats. Restore to re-activate."}
+                        : "Former employees keep historical shifts and stats. Reactivate to put them back on the roster."}
                 </p>
                 {employees.map((emp) => (
                     <div
@@ -102,7 +104,7 @@ export function ArchivedEmployeesSection({ employees, canManage }: Props) {
                                 disabled={isPending}
                             >
                                 <Undo2 className="w-3.5 h-3.5 mr-1.5" />
-                                {t("common.restore") !== "common.restore" ? t("common.restore") : "Restore"}
+                                {reactivateLabel}
                             </Button>
                         )}
                     </div>
