@@ -185,10 +185,13 @@ export async function rotateEmployeeShareLink(employeeId: number, ttlDays = 90) 
         .single<{ success: boolean; token?: string; expires_at?: string; error?: string }>();
 
     if (error) {
-        return { error: "Failed to rotate share link" };
+        return { error: `Rotate failed: ${error.message}${error.hint ? ` (${error.hint})` : ""}` };
     }
-    if (!data?.success || !data.token) {
-        return { error: data?.error || "Failed to rotate share link" };
+    if (!data) {
+        return { error: "Rotate failed: no response from RPC (did migration 015 run on this DB?)" };
+    }
+    if (!data.success || !data.token) {
+        return { error: `Rotate failed: ${data.error ?? "RPC returned success=false without a token"}` };
     }
 
     invalidateEmployees(userOrg.organization_id);
@@ -210,8 +213,11 @@ export async function revokeEmployeeShareLinks(employeeId: number) {
         .rpc("revoke_share_tokens", { p_employee_id: employeeId })
         .single<{ success: boolean; revoked?: number; error?: string }>();
 
-    if (error || !data?.success) {
-        return { error: data?.error || "Failed to revoke share links" };
+    if (error) {
+        return { error: `Revoke failed: ${error.message}${error.hint ? ` (${error.hint})` : ""}` };
+    }
+    if (!data?.success) {
+        return { error: `Revoke failed: ${data?.error ?? "RPC returned success=false"}` };
     }
 
     invalidateEmployees(userOrg.organization_id);
