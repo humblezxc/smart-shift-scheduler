@@ -12,10 +12,10 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Link2, Check, Pencil } from "lucide-react";
-import { toast } from "sonner";
+import { Link2, Pencil } from "lucide-react";
 import { useLanguage } from "@/context/language-context";
 import { EditEmployeeDialog } from "./edit-employee-dialog";
+import { ShareLinkDialog } from "./share-link-dialog";
 
 interface EmployeeListProps {
     employees: Employee[];
@@ -23,19 +23,9 @@ interface EmployeeListProps {
 }
 
 export function EmployeeList({ employees, canManage = false }: EmployeeListProps) {
-    const [copiedId, setCopiedId] = useState<number | null>(null);
     const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-    const { t, language } = useLanguage();
-
-    const copyLink = (token: string, id: number) => {
-        const url = `${window.location.origin}/s/${token}?lang=${language}`;
-
-        navigator.clipboard.writeText(url);
-        toast.success(t("common.link_copied"));
-
-        setCopiedId(id);
-        setTimeout(() => setCopiedId(null), 2000);
-    };
+    const [sharingEmployee, setSharingEmployee] = useState<Employee | null>(null);
+    const { t } = useLanguage();
 
     const roleBadgeColors: Record<string, string> = {
         owner: "bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-950/60 dark:text-purple-300 dark:hover:bg-purple-950/80",
@@ -76,21 +66,16 @@ export function EmployeeList({ employees, canManage = false }: EmployeeListProps
                                         <Pencil className="h-4 w-4 text-muted-foreground" />
                                     </Button>
                                 )}
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() =>
-                                        // @ts-ignore
-                                        copyLink(employee.share_token, employee.id)
-                                    }
-                                    title={t("common.copy_link")}
-                                >
-                                    {copiedId === employee.id ? (
-                                        <Check className="h-4 w-4 text-green-600" />
-                                    ) : (
+                                {canManage && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setSharingEmployee(employee)}
+                                        title={t("share.manage") !== "share.manage" ? t("share.manage") : "Manage share link"}
+                                    >
                                         <Link2 className="h-4 w-4 text-muted-foreground" />
-                                    )}
-                                </Button>
+                                    </Button>
+                                )}
                             </TableCell>
                         </TableRow>
                     ))}
@@ -102,6 +87,15 @@ export function EmployeeList({ employees, canManage = false }: EmployeeListProps
                     employee={editingEmployee}
                     open={!!editingEmployee}
                     onOpenChange={(open) => !open && setEditingEmployee(null)}
+                />
+            )}
+
+            {sharingEmployee && (
+                <ShareLinkDialog
+                    employeeId={sharingEmployee.id}
+                    employeeName={`${sharingEmployee.first_name} ${sharingEmployee.last_name}`}
+                    open={!!sharingEmployee}
+                    onOpenChange={(open) => !open && setSharingEmployee(null)}
                 />
             )}
         </div>

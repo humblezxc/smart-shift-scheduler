@@ -3,22 +3,32 @@ import { notFound } from "next/navigation";
 import { EmployeeScheduleView } from "@/features/employees/components/employee-schedule-view";
 import { addDays } from "date-fns";
 
-export const revalidate = 60;
+export const revalidate = 0;
 
-export default async function EmployeeSchedulePage({ params, }: { params: Promise<{ token: string }>; }) {
+interface ResolveResult {
+    success?: boolean;
+    error?: string;
+    employee_id?: number;
+    organization_id?: string;
+    first_name?: string;
+    last_name?: string;
+    role?: string;
+}
+
+interface ShiftsResult {
+    success?: boolean;
+    error?: string;
+    shifts?: Array<{ id: number; start_time: string; end_time: string }>;
+}
+
+export default async function EmployeeSchedulePage({ params }: { params: Promise<{ token: string }> }) {
     const { token } = await params;
 
-    const { data: employee } = await supabase
-        .from("employees")
-        .select("id, first_name, last_name, role, share_token, share_token_expires_at, share_token_revoked, organization_id, archived_at")
-        .eq("share_token", token)
-        .single();
+    const { data: resolveData } = await supabase
+        .rpc("resolve_share_token", { p_token: token })
+        .single<ResolveResult>();
 
-    if (!employee || employee.share_token_revoked || employee.archived_at) {
-        return notFound();
-    }
-
-    if (employee.share_token_expires_at && new Date(employee.share_token_expires_at) < new Date()) {
+    if (!resolveData?.success || !resolveData.employee_id) {
         return notFound();
     }
 
@@ -28,26 +38,32 @@ export default async function EmployeeSchedulePage({ params, }: { params: Promis
 
     const [shiftsRes, settingsRes] = await Promise.all([
         supabase
-            .from("shifts")
-            .select("id, start_time, end_time")
-            .eq("employee_id", employee.id)
-            .gte("start_time", today.toISOString())
-            .lte("start_time", horizon.toISOString())
-            .order("start_time", { ascending: true })
-            .limit(100),
+            .rpc("get_shifts_by_share_token", {
+                p_token: token,
+                p_from: today.toISOString(),
+                p_to: horizon.toISOString(),
+            })
+            .single<ShiftsResult>(),
         supabase
             .from("organization_settings")
-            .select("timezone, currency")
-            .eq("organization_id", employee.organization_id)
+            .select("timezone")
+            .eq("organization_id", resolveData.organization_id!)
             .single(),
     ]);
 
     const timezone = settingsRes.data?.timezone || "Europe/Warsaw";
 
+    const employee = {
+        id: resolveData.employee_id!,
+        first_name: resolveData.first_name || "",
+        last_name: resolveData.last_name || "",
+        role: resolveData.role || "cashier",
+    };
+
     return (
         <EmployeeScheduleView
             employee={employee}
-            shifts={shiftsRes.data || []}
+            shifts={shiftsRes.data?.shifts || []}
             shareToken={token}
             timezone={timezone}
         />

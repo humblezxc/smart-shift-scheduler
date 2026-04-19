@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/popover";
 import { useLanguage } from "@/context/language-context";
 
-export function RequestTimeOff({ employeeId, shareToken, label }: { employeeId: number; shareToken?: string; label?: string }) {
+export function RequestTimeOff({ shareToken, label }: { employeeId?: number; shareToken?: string; label?: string }) {
     const [date, setDate] = useState<Date>();
     const [loading, setLoading] = useState(false);
     const [open, setOpen] = useState(false);
@@ -26,10 +26,9 @@ export function RequestTimeOff({ employeeId, shareToken, label }: { employeeId: 
         setLoading(true);
 
         const res = await createPublicTimeOffRequest({
-            employee_id: employeeId,
             share_token: shareToken,
             date: format(date, "yyyy-MM-dd"),
-            reason: "Requested via link",
+            reason: "Requested via share link",
         });
 
         setLoading(false);

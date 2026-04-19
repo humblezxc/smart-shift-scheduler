@@ -143,7 +143,6 @@ export async function restoreEmployee(id: number) {
 }
 
 export async function createPublicTimeOffRequest(data: {
-    employee_id: number;
     share_token: string;
     date: string;
     reason?: string;
@@ -155,10 +154,9 @@ export async function createPublicTimeOffRequest(data: {
 
     const { data: result, error } = await supabase
         .rpc("create_public_time_off_request", {
-            p_employee_id: data.employee_id,
-            p_share_token: data.share_token,
+            p_token: data.share_token,
             p_date: data.date,
-            p_reason: data.reason || "Requested via link",
+            p_reason: data.reason || "Requested via share link",
         })
         .single<{ success: boolean; error?: string }>();
 
@@ -171,4 +169,53 @@ export async function createPublicTimeOffRequest(data: {
     }
 
     return { success: true };
+}
+
+export async function rotateEmployeeShareLink(employeeId: number, ttlDays = 90) {
+    const { error: roleError, userOrg } = await requireRole('manager');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+
+    const supabase = await createSupabaseServerClient();
+
+    const { data, error } = await supabase
+        .rpc("rotate_share_token", {
+            p_employee_id: employeeId,
+            p_ttl_days: ttlDays,
+        })
+        .single<{ success: boolean; token?: string; expires_at?: string; error?: string }>();
+
+    if (error) {
+        return { error: "Failed to rotate share link" };
+    }
+    if (!data?.success || !data.token) {
+        return { error: data?.error || "Failed to rotate share link" };
+    }
+
+    invalidateEmployees(userOrg.organization_id);
+    revalidatePath("/");
+
+    return {
+        success: true,
+        token: data.token,
+        expiresAt: data.expires_at ?? null,
+    };
+}
+
+export async function revokeEmployeeShareLinks(employeeId: number) {
+    const { error: roleError, userOrg } = await requireRole('manager');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+        .rpc("revoke_share_tokens", { p_employee_id: employeeId })
+        .single<{ success: boolean; revoked?: number; error?: string }>();
+
+    if (error || !data?.success) {
+        return { error: data?.error || "Failed to revoke share links" };
+    }
+
+    invalidateEmployees(userOrg.organization_id);
+    revalidatePath("/");
+
+    return { success: true, revoked: data.revoked ?? 0 };
 }
