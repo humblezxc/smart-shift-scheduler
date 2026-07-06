@@ -17,6 +17,7 @@ import { useLanguage } from "@/context/language-context";
 
 export function RequestTimeOff({ shareToken, label }: { employeeId?: number; shareToken?: string; label?: string }) {
     const [date, setDate] = useState<Date>();
+    const [note, setNote] = useState("");
     const [loading, setLoading] = useState(false);
     const [open, setOpen] = useState(false);
     const { t } = useLanguage();
@@ -25,10 +26,11 @@ export function RequestTimeOff({ shareToken, label }: { employeeId?: number; sha
         if (!date || !shareToken) return;
         setLoading(true);
 
+        const trimmed = note.trim();
         const res = await createPublicTimeOffRequest({
             share_token: shareToken,
             date: format(date, "yyyy-MM-dd"),
-            reason: "Requested via share link",
+            reason: trimmed ? `Day off: ${trimmed}` : "Requested via share link",
         });
 
         setLoading(false);
@@ -39,6 +41,7 @@ export function RequestTimeOff({ shareToken, label }: { employeeId?: number; sha
             toast.success(`${t("employee.request_sent")} ${format(date, "MMM d")}`);
             setOpen(false);
             setDate(undefined);
+            setNote("");
         }
     }
 
@@ -61,7 +64,15 @@ export function RequestTimeOff({ shareToken, label }: { employeeId?: number; sha
                     disabled={(date) => date < new Date()}
                     initialFocus
                 />
-                <div className="p-3">
+                <div className="p-3 space-y-2">
+                    <textarea
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        placeholder={t("employee.note_placeholder")}
+                        maxLength={200}
+                        rows={2}
+                        className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
                     <Button
                         className="w-full"
                         disabled={!date || loading}

@@ -172,7 +172,7 @@ export async function createPublicTimeOffRequest(data: {
     return { success: true };
 }
 
-export async function rotateEmployeeShareLink(employeeId: number, ttlDays = 90) {
+export async function rotateEmployeeShareLink(employeeId: number, ttlDays = 365) {
     const { error: roleError, userOrg } = await requireRole('manager');
     if (roleError || !userOrg) return { error: roleError || "Not authorized" };
 

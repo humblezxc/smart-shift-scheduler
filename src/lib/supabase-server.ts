@@ -2,6 +2,9 @@ import { cache } from 'react';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { updateTag } from 'next/cache';
+import { fetchOrgSettingsForOrg } from '@/lib/cached-queries';
+import { cacheTags } from '@/lib/supabase-admin';
 
 export async function createSupabaseServerClient() {
     const cookieStore = await cookies();
@@ -57,16 +60,7 @@ export const getUserOrganization = cache(async () => {
 });
 
 export const getOrgSettings = cache(async (orgId: string) => {
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase
-        .from('organization_settings')
-        .select('timezone, currency, week_starts_on, onboarding_completed')
-        .eq('organization_id', orgId)
-        .maybeSingle();
-    if (error) {
-        throw new Error('Failed to load organization settings');
-    }
-    return data;
+    return fetchOrgSettingsForOrg(orgId);
 });
 
 export async function requireAuth() {
@@ -162,4 +156,5 @@ export async function completeOnboarding() {
         .from('organization_settings')
         .update({ onboarding_completed: true })
         .eq('organization_id', userOrg.organization_id);
+    updateTag(cacheTags.settings(userOrg.organization_id));
 }
