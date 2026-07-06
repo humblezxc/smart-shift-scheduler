@@ -1,22 +1,24 @@
 "use server";
 
 import { stripe, SubscriptionTier } from "@/lib/stripe";
-import { createSupabaseServerClient, requireOrganization } from "@/lib/supabase-server";
+import { createSupabaseServerClient, requireOrganization, requireRole } from "@/lib/supabase-server";
 
 export async function getBillingInfo() {
     const userOrg = await requireOrganization();
     const supabase = await createSupabaseServerClient();
 
-    const { data: org } = await supabase
-        .from("organizations")
-        .select("subscription_tier, subscription_status, stripe_customer_id")
-        .eq("id", userOrg.organization_id)
-        .single();
-
-    const { count: employeeCount } = await supabase
-        .from("employees")
-        .select("*", { count: "exact", head: true })
-        .eq("organization_id", userOrg.organization_id);
+    const [{ data: org }, { count: employeeCount }] = await Promise.all([
+        supabase
+            .from("organizations")
+            .select("subscription_tier, subscription_status, stripe_customer_id")
+            .eq("id", userOrg.organization_id)
+            .single(),
+        supabase
+            .from("employees")
+            .select("*", { count: "exact", head: true })
+            .eq("organization_id", userOrg.organization_id)
+            .is("archived_at", null),
+    ]);
 
     return {
         tier: (org?.subscription_tier || "free") as SubscriptionTier,
@@ -33,7 +35,8 @@ export async function createCheckoutSession() {
         return { error: "Stripe not configured" };
     }
 
-    const userOrg = await requireOrganization();
+    const { error: roleError, userOrg } = await requireRole('admin');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
 
     const priceId = process.env.STRIPE_PRO_PRICE_ID;
     if (!priceId) {
@@ -58,7 +61,8 @@ export async function createPortalSession() {
         return { error: "Stripe not configured" };
     }
 
-    const userOrg = await requireOrganization();
+    const { error: roleError, userOrg } = await requireRole('admin');
+    if (roleError || !userOrg) return { error: roleError || "Not authorized" };
     const supabase = await createSupabaseServerClient();
 
     const { data: org } = await supabase

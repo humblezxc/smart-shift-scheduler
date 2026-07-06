@@ -40,19 +40,20 @@ export async function createEmployee(data: EmployeeFormValues) {
 
     const supabase = await createSupabaseServerClient();
 
-    const { data: org } = await supabase
-        .from("organizations")
-        .select("subscription_tier")
-        .eq("id", orgId)
-        .single();
+    const [{ data: org }, { count }] = await Promise.all([
+        supabase
+            .from("organizations")
+            .select("subscription_tier")
+            .eq("id", orgId)
+            .single(),
+        supabase
+            .from("employees")
+            .select("*", { count: "exact", head: true })
+            .eq("organization_id", orgId)
+            .is("archived_at", null),
+    ]);
 
     const tier = (org?.subscription_tier || "free") as SubscriptionTier;
-
-    const { count } = await supabase
-        .from("employees")
-        .select("*", { count: "exact", head: true })
-        .eq("organization_id", orgId)
-        .is("archived_at", null);
 
     if (!canAddEmployee(tier, count || 0)) {
         return { error: "Employee limit reached. Upgrade your plan to add more employees." };

@@ -30,10 +30,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     getEmployees(),
     supabase
         .from("time_off_requests")
-        .select(`*, employee:employees (first_name, last_name, role)`)
+        .select(`id, date, reason, employee:employees (first_name, last_name)`)
         .eq("organization_id", orgId)
         .gte("date", startStr)
-        .order("date", { ascending: true }),
+        .order("date", { ascending: true })
+        .limit(100),
     getShiftsForWeek(start, end),
     fetchHolidaysForRange(orgId, yearStart, yearEnd),
   ]);

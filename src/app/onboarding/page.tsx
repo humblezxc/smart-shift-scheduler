@@ -1,10 +1,8 @@
 import { requireOrganization } from "@/lib/supabase-server";
-import { getOrganization } from "@/features/settings/actions";
 import { OnboardingWizard } from "@/features/onboarding/components/onboarding-wizard";
 
 export default async function OnboardingPage() {
-    await requireOrganization();
-    const org = await getOrganization();
+    const userOrg = await requireOrganization();
 
-    return <OnboardingWizard orgName={org?.name || "Your Organization"} />;
+    return <OnboardingWizard orgName={userOrg.organizations?.name || "Your Organization"} />;
 }

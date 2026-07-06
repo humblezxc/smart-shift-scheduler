@@ -13,6 +13,7 @@ interface ResolveResult {
     first_name?: string;
     last_name?: string;
     role?: string;
+    timezone?: string;
 }
 
 interface ShiftsResult {
@@ -36,22 +37,15 @@ export default async function EmployeeSchedulePage({ params }: { params: Promise
     today.setHours(0, 0, 0, 0);
     const horizon = addDays(today, 60);
 
-    const [shiftsRes, settingsRes] = await Promise.all([
-        supabase
-            .rpc("get_shifts_by_share_token", {
-                p_token: token,
-                p_from: today.toISOString(),
-                p_to: horizon.toISOString(),
-            })
-            .single<ShiftsResult>(),
-        supabase
-            .from("organization_settings")
-            .select("timezone")
-            .eq("organization_id", resolveData.organization_id!)
-            .single(),
-    ]);
+    const { data: shiftsData } = await supabase
+        .rpc("get_shifts_by_share_token", {
+            p_token: token,
+            p_from: today.toISOString(),
+            p_to: horizon.toISOString(),
+        })
+        .single<ShiftsResult>();
 
-    const timezone = settingsRes.data?.timezone || "Europe/Warsaw";
+    const timezone = resolveData.timezone || "Europe/Warsaw";
 
     const employee = {
         id: resolveData.employee_id!,
@@ -63,7 +57,7 @@ export default async function EmployeeSchedulePage({ params }: { params: Promise
     return (
         <EmployeeScheduleView
             employee={employee}
-            shifts={shiftsRes.data?.shifts || []}
+            shifts={shiftsData?.shifts || []}
             shareToken={token}
             timezone={timezone}
         />

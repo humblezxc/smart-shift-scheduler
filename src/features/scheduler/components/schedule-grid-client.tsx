@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useId, useEffect } from "react";
-import { format, isSameDay, isSunday } from "date-fns";
+import { useState, useId, useEffect, useMemo } from "react";
+import { format, isSunday } from "date-fns";
 import { useRouter } from "next/navigation";
 import {
     DndContext,
@@ -18,6 +18,7 @@ import { AddShiftDialog } from "./add-shift-dialog";
 import { EditShiftDialog } from "./edit-shift-dialog";
 import { DraggableShift } from "./draggable-shift";
 import { DroppableDay } from "./droppable-day";
+import { DayTaskTag } from "./day-task-tag";
 import { useShiftDrag } from "../hooks/use-shift-drag";
 import { Shift, Employee } from "@/types";
 import { toggleHoliday } from "../actions";
@@ -62,6 +63,23 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays, c
             activationConstraint: { delay: 200, tolerance: 5 },
         })
     );
+
+    const shiftsByDay = useMemo(() => {
+        const map = new Map<string, Shift[]>();
+        for (const shift of shifts) {
+            const key = format(new Date(shift.start_time), "yyyy-MM-dd");
+            const list = map.get(key);
+            if (list) {
+                list.push(shift);
+            } else {
+                map.set(key, [shift]);
+            }
+        }
+        for (const list of map.values()) {
+            list.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+        }
+        return map;
+    }, [shifts]);
 
     const handleDayClick = async (date: Date) => {
         if (!canManage) return;
@@ -117,6 +135,8 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays, c
                                     {t("scheduler.holiday")}
                                 </div>
                             )}
+
+                            <DayTaskTag date={day} className="mt-1.5" />
                         </div>
                     );
                 })}
@@ -130,9 +150,7 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays, c
             >
                 <div className="grid grid-cols-7">
                     {days.map((day) => {
-                        const dayShifts = shifts
-                            .filter((shift) => isSameDay(new Date(shift.start_time), day))
-                            .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+                        const dayShifts = shiftsByDay.get(format(day, "yyyy-MM-dd")) ?? [];
 
                         return (
                             <DroppableDay key={day.toString()} day={day}>
@@ -141,7 +159,7 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays, c
                                         <DraggableShift
                                             key={shift.id}
                                             shift={shift}
-                                            onClick={canManage ? () => setEditingShift(shift) : undefined}
+                                            onEdit={canManage ? setEditingShift : undefined}
                                             isBeingDragged={activeShift?.id === shift.id}
                                             disableDroppable={activeShift?.id === shift.id || !canManage}
                                             disabled={!canManage}

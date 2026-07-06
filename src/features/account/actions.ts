@@ -1,6 +1,6 @@
 "use server";
 
-import { createSupabaseServerClient, getUser } from "@/lib/supabase-server";
+import { createSupabaseServerClient, getUser, getUserOrganization } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 
 export async function updatePassword(formData: FormData) {
@@ -31,14 +31,15 @@ export async function deleteAccount() {
         return { error: "Not authenticated" };
     }
 
+    const userOrg = await getUserOrganization();
     const supabase = await createSupabaseServerClient();
 
-    const { error: orgError } = await supabase
+    const { error: orgError, count } = await supabase
         .from("user_organizations")
-        .delete()
+        .delete({ count: "exact" })
         .eq("user_id", user.id);
 
-    if (orgError) {
+    if (orgError || (userOrg && !count)) {
         return { error: "Failed to remove organization membership" };
     }
 

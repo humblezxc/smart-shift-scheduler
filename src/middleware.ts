@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 export const config = {
-    matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+    matcher: ["/((?!api|_next/static|_next/image|favicon.ico|manifest.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };
 
 export async function middleware(req: NextRequest) {
@@ -64,15 +64,17 @@ export async function middleware(req: NextRequest) {
 
     const basicAuth = req.headers.get("authorization");
 
-    if (basicAuth) {
-        const authValue = basicAuth.split(" ")[1];
-        const [authUser, pwd] = atob(authValue).split(":");
+    if (basicAuth && basicAuth.startsWith("Basic ")) {
+        try {
+            const [authUser, pwd] = atob(basicAuth.slice(6)).split(":");
 
-        const validUser = process.env.ADMIN_USER;
-        const validPass = process.env.ADMIN_PASSWORD;
+            const validUser = process.env.ADMIN_USER;
+            const validPass = process.env.ADMIN_PASSWORD;
 
-        if (authUser === validUser && pwd === validPass) {
-            return NextResponse.next();
+            if (authUser === validUser && pwd === validPass) {
+                return NextResponse.next();
+            }
+        } catch {
         }
     }
 

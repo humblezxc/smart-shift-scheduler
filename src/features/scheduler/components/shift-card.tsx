@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Shift } from "@/types";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +15,7 @@ const roleColors: Record<string, string> = {
     student: "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 dark:hover:bg-emerald-950/80",
 };
 
-export function ShiftCard({ shift }: Props) {
+export const ShiftCard = memo(function ShiftCard({ shift }: Props) {
     const role = shift.employee?.role || "cashier";
 
     const colorClass = roleColors[role] || "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700";
@@ -33,7 +34,7 @@ export function ShiftCard({ shift }: Props) {
             </div>
         </div>
     );
-}
+});
 
 function ClockIcon({ className }: { className?: string }) {
     return (

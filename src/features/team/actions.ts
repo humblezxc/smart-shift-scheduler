@@ -1,6 +1,6 @@
 "use server";
 
-import { createSupabaseServerClient, requireOrganization, getUser, getUserOrganization } from "@/lib/supabase-server";
+import { createSupabaseServerClient, requireOrganization, requireRole, getUser, getUserOrganization } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -42,16 +42,15 @@ export async function createInvite(formData: FormData) {
         return { error: result.error.issues[0].message };
     }
 
-    const userOrg = await requireOrganization();
-
-    if (!["owner", "admin"].includes(userOrg.role)) {
+    const { error: roleError, userOrg } = await requireRole('admin');
+    if (roleError || !userOrg) {
         return { error: "You don't have permission to invite team members" };
     }
 
     const user = await getUser();
     const supabase = await createSupabaseServerClient();
 
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
         .from("organization_invites")
         .select("id")
         .eq("organization_id", userOrg.organization_id)
@@ -59,7 +58,12 @@ export async function createInvite(formData: FormData) {
         .is("accepted_at", null)
         .is("revoked_at", null)
         .gt("expires_at", new Date().toISOString())
-        .single();
+        .limit(1)
+        .maybeSingle();
+
+    if (existingError) {
+        return { error: "Failed to create invite" };
+    }
 
     if (existing) {
         return { error: "An invite for this email is already pending" };
@@ -85,14 +89,8 @@ export async function createInvite(formData: FormData) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
     const inviteUrl = `${baseUrl}/invite/${invite.token}`;
 
-    const { data: org } = await supabase
-        .from("organizations")
-        .select("name")
-        .eq("id", userOrg.organization_id)
-        .single();
-
     const emailContent = buildInviteEmail({
-        organizationName: org?.name || "your team",
+        organizationName: userOrg.organizations?.name || "your team",
         role,
         inviteUrl,
     });
@@ -130,9 +128,8 @@ export async function listInvites(): Promise<OrganizationInvite[]> {
 }
 
 export async function revokeInvite(id: string) {
-    const userOrg = await requireOrganization();
-
-    if (!["owner", "admin"].includes(userOrg.role)) {
+    const { error: roleError, userOrg } = await requireRole('admin');
+    if (roleError || !userOrg) {
         return { error: "You don't have permission to revoke invites" };
     }
 

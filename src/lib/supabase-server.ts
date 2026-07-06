@@ -42,7 +42,9 @@ export const getUserOrganization = cache(async () => {
         .from('user_organizations')
         .select('organization_id, role, organizations:organizations(id, name, slug)')
         .eq('user_id', user.id)
-        .single();
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
 
     if (!userOrg) return null;
 
@@ -56,11 +58,14 @@ export const getUserOrganization = cache(async () => {
 
 export const getOrgSettings = cache(async (orgId: string) => {
     const supabase = await createSupabaseServerClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
         .from('organization_settings')
         .select('timezone, currency, week_starts_on, onboarding_completed')
         .eq('organization_id', orgId)
-        .single();
+        .maybeSingle();
+    if (error) {
+        throw new Error('Failed to load organization settings');
+    }
     return data;
 });
 
