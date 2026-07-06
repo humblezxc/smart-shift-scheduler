@@ -6,6 +6,7 @@ import { pl, uk, enUS } from "date-fns/locale";
 import { Employee, Shift } from "@/types";
 import { useLanguage } from "@/context/language-context";
 import { calculateTotalHours } from "@/lib/shift-utils";
+import { getDayTask, DAY_TASK_EMOJI } from "../lib/day-task";
 
 interface Props {
     date: Date;
@@ -85,7 +86,12 @@ export const IndividualTimesheetView = forwardRef<HTMLDivElement, Props>(({ date
 
                                 return (
                                     <tr key={day.toString()} className={isWknd ? "weekend" : ""}>
-                                        <td className="font-bold">{format(day, "d")}</td>
+                                        <td className="font-bold">
+                                            {format(day, "d")}
+                                            <span className="ml-1 text-[8px] font-normal" aria-hidden>
+                                                {DAY_TASK_EMOJI[getDayTask(day)]}
+                                            </span>
+                                        </td>
                                         <td>{timeString}</td>
                                         <td></td>
                                         <td></td>

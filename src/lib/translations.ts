@@ -83,6 +83,10 @@ export const translations = {
             generate_ai: "Generate Schedule (AI)",
             holiday: "Holiday",
         },
+        dayTask: {
+            pallet: "Pallet",
+            fridge: "Fridge",
+        },
         employee: {
             hi: "Hi",
             upcoming_shifts: "Here are your upcoming shifts",
@@ -383,6 +387,10 @@ export const translations = {
             generate_ai: "Generuj (AI)",
             holiday: "Święto",
         },
+        dayTask: {
+            pallet: "Paleta",
+            fridge: "Lodówka",
+        },
         employee: {
             hi: "Cześć",
             upcoming_shifts: "Oto Twoje nadchodzące zmiany",
@@ -682,6 +690,10 @@ export const translations = {
             ai_thinking: "AI думає...",
             generate_ai: "Згенерувати (AI)",
             holiday: "Вихідний/Свято",
+        },
+        dayTask: {
+            pallet: "Палета",
+            fridge: "Холодильник",
         },
         employee: {
             hi: "Привіт",
