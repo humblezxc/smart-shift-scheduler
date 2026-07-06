@@ -11,6 +11,7 @@ import { RequestTimeOff } from "@/features/employees/components/request-time-off
 import { RejectShiftButton } from "@/features/employees/components/reject-shift-button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { DayTaskTag } from "@/features/scheduler/components/day-task-tag";
 import { useLanguage } from "@/context/language-context";
 import { cn } from "@/lib/utils";
 
@@ -235,6 +236,7 @@ export function EmployeeScheduleView({ employee, shifts, shareToken, timezone }:
                                                                         {t("employee.today") !== "employee.today" ? t("employee.today") : "Today"}
                                                                     </Badge>
                                                                 )}
+                                                                <DayTaskTag date={d} />
                                                             </div>
                                                             <div className="flex items-center text-muted-foreground text-sm mt-1">
                                                                 <Clock className="w-3.5 h-3.5 mr-1.5" />

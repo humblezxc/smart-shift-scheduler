@@ -9,8 +9,7 @@ interface Props {
 
 export default async function InvitePage({ params }: Props) {
     const { token } = await params;
-    const invite = await getInviteByToken(token);
-    const user = await getUser();
+    const [invite, user] = await Promise.all([getInviteByToken(token), getUser()]);
 
     const renderContent = () => {
         if (!invite || invite.status === "not_found") {

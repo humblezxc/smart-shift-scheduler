@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { translations, Language } from "@/lib/translations";
 import { useRouter, usePathname } from "next/navigation";
 
@@ -27,15 +27,15 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
-    const setLanguage = (lang: Language) => {
+    const setLanguage = useCallback((lang: Language) => {
         setLanguageState(lang);
 
         const params = new URLSearchParams(window.location.search);
         params.set('lang', lang);
         router.replace(`${pathname}?${params.toString()}`);
-    };
+    }, [router, pathname]);
 
-    const t = (key: string) => {
+    const t = useCallback((key: string) => {
         const keys = key.split(".");
         let value: any = translations[language];
 
@@ -47,10 +47,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
             }
         }
         return value as string;
-    };
+    }, [language]);
+
+    const value = useMemo(() => ({ language, setLanguage, t }), [language, setLanguage, t]);
 
     return (
-        <LanguageContext.Provider value={{ language, setLanguage, t }}>
+        <LanguageContext.Provider value={value}>
             {children}
         </LanguageContext.Provider>
     );

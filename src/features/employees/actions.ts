@@ -40,19 +40,20 @@ export async function createEmployee(data: EmployeeFormValues) {
 
     const supabase = await createSupabaseServerClient();
 
-    const { data: org } = await supabase
-        .from("organizations")
-        .select("subscription_tier")
-        .eq("id", orgId)
-        .single();
+    const [{ data: org }, { count }] = await Promise.all([
+        supabase
+            .from("organizations")
+            .select("subscription_tier")
+            .eq("id", orgId)
+            .single(),
+        supabase
+            .from("employees")
+            .select("*", { count: "exact", head: true })
+            .eq("organization_id", orgId)
+            .is("archived_at", null),
+    ]);
 
     const tier = (org?.subscription_tier || "free") as SubscriptionTier;
-
-    const { count } = await supabase
-        .from("employees")
-        .select("*", { count: "exact", head: true })
-        .eq("organization_id", orgId)
-        .is("archived_at", null);
 
     if (!canAddEmployee(tier, count || 0)) {
         return { error: "Employee limit reached. Upgrade your plan to add more employees." };
@@ -185,10 +186,13 @@ export async function rotateEmployeeShareLink(employeeId: number, ttlDays = 90) 
         .single<{ success: boolean; token?: string; expires_at?: string; error?: string }>();
 
     if (error) {
-        return { error: "Failed to rotate share link" };
+        return { error: `Rotate failed: ${error.message}${error.hint ? ` (${error.hint})` : ""}` };
     }
-    if (!data?.success || !data.token) {
-        return { error: data?.error || "Failed to rotate share link" };
+    if (!data) {
+        return { error: "Rotate failed: no response from RPC (did migration 015 run on this DB?)" };
+    }
+    if (!data.success || !data.token) {
+        return { error: `Rotate failed: ${data.error ?? "RPC returned success=false without a token"}` };
     }
 
     invalidateEmployees(userOrg.organization_id);
@@ -210,8 +214,11 @@ export async function revokeEmployeeShareLinks(employeeId: number) {
         .rpc("revoke_share_tokens", { p_employee_id: employeeId })
         .single<{ success: boolean; revoked?: number; error?: string }>();
 
-    if (error || !data?.success) {
-        return { error: data?.error || "Failed to revoke share links" };
+    if (error) {
+        return { error: `Revoke failed: ${error.message}${error.hint ? ` (${error.hint})` : ""}` };
+    }
+    if (!data?.success) {
+        return { error: `Revoke failed: ${data?.error ?? "RPC returned success=false"}` };
     }
 
     invalidateEmployees(userOrg.organization_id);

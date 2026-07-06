@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { ShiftCard } from "./shift-card";
 import { Shift } from "@/types";
@@ -7,13 +8,13 @@ import { cn } from "@/lib/utils";
 
 interface DraggableShiftProps {
     shift: Shift;
-    onClick?: () => void;
+    onEdit?: (shift: Shift) => void;
     isBeingDragged?: boolean;
     disableDroppable?: boolean;
     disabled?: boolean;
 }
 
-export function DraggableShift({ shift, onClick, isBeingDragged, disableDroppable, disabled }: DraggableShiftProps) {
+export const DraggableShift = memo(function DraggableShift({ shift, onEdit, isBeingDragged, disableDroppable, disabled }: DraggableShiftProps) {
     const { attributes, listeners, setNodeRef: setDraggableRef, isDragging } = useDraggable({
         id: `shift-${shift.id}`,
         data: { shift, type: "shift" },
@@ -38,7 +39,7 @@ export function DraggableShift({ shift, onClick, isBeingDragged, disableDroppabl
             }}
             {...(disabled ? {} : listeners)}
             {...(disabled ? {} : attributes)}
-            onClick={onClick}
+            onClick={onEdit ? () => onEdit(shift) : undefined}
             className={cn(
                 "transition-all",
                 !disabled && "cursor-grab active:cursor-grabbing hover:opacity-90",
@@ -49,4 +50,4 @@ export function DraggableShift({ shift, onClick, isBeingDragged, disableDroppabl
             <ShiftCard shift={shift} />
         </div>
     );
-}
+});

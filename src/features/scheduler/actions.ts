@@ -66,21 +66,30 @@ export async function createShift(data: ShiftFormValues) {
     const { date, start_time, end_time, employee_id } = result.data;
     const dateStr = format(new Date(date), "yyyy-MM-dd");
     const endDateStr = end_time <= start_time ? format(addDays(new Date(date), 1), "yyyy-MM-dd") : dateStr;
-    const tz = await getOrgTimezone(orgId);
 
-    const { data: employee } = await supabase
-        .from("employees")
-        .select("hourly_rate")
-        .eq("id", employee_id)
-        .eq("organization_id", orgId)
-        .single();
+    const [tz, employeeRes] = await Promise.all([
+        getOrgTimezone(orgId).catch(() => null),
+        supabase
+            .from("employees")
+            .select("hourly_rate")
+            .eq("id", employee_id)
+            .eq("organization_id", orgId)
+            .maybeSingle(),
+    ]);
+
+    if (!tz) {
+        return { error: "Could not load organization settings" };
+    }
+    if (employeeRes.error || !employeeRes.data) {
+        return { error: "Employee not found" };
+    }
 
     const { error } = await supabase.from("shifts").insert({
         employee_id,
         organization_id: orgId,
         start_time: buildTimestamp(dateStr, start_time, tz),
         end_time: buildTimestamp(endDateStr, end_time, tz),
-        hourly_rate: employee?.hourly_rate || 0,
+        hourly_rate: employeeRes.data.hourly_rate || 0,
     });
 
     if (error) {
@@ -96,7 +105,11 @@ export async function generateSchedule(dateStr?: string) {
     if (roleError || !userOrg) return { error: roleError || "Not authorized" };
     const orgId = userOrg.organization_id;
     const supabase = await createSupabaseServerClient();
-    const { timezone: tz, weekStartsOn } = await getOrgScheduleConfig(orgId);
+    const scheduleConfig = await getOrgScheduleConfig(orgId).catch(() => null);
+    if (!scheduleConfig) {
+        return { error: "Could not load organization settings" };
+    }
+    const { timezone: tz, weekStartsOn } = scheduleConfig;
 
     const { data: employees } = await supabase
         .from("employees")
@@ -343,7 +356,23 @@ export async function updateShift(id: number, data: ShiftFormValues) {
     const { date, start_time, end_time, employee_id } = result.data;
     const dateStr = format(new Date(date), "yyyy-MM-dd");
     const endDateStr = end_time <= start_time ? format(addDays(new Date(date), 1), "yyyy-MM-dd") : dateStr;
-    const tz = await getOrgTimezone(orgId);
+
+    const [tz, employeeRes] = await Promise.all([
+        getOrgTimezone(orgId).catch(() => null),
+        supabase
+            .from("employees")
+            .select("hourly_rate")
+            .eq("id", employee_id)
+            .eq("organization_id", orgId)
+            .maybeSingle(),
+    ]);
+
+    if (!tz) {
+        return { error: "Could not load organization settings" };
+    }
+    if (employeeRes.error || !employeeRes.data) {
+        return { error: "Employee not found" };
+    }
 
     const { error } = await supabase
         .from("shifts")
@@ -351,6 +380,7 @@ export async function updateShift(id: number, data: ShiftFormValues) {
             employee_id,
             start_time: buildTimestamp(dateStr, start_time, tz),
             end_time: buildTimestamp(endDateStr, end_time, tz),
+            hourly_rate: employeeRes.data.hourly_rate || 0,
         })
         .eq("id", id)
         .eq("organization_id", orgId);
@@ -377,15 +407,19 @@ export async function moveShiftToDate(shiftId: number, newDate: string) {
 
     if (!shift) return { error: "Shift not found" };
 
-    const tz = await getOrgTimezone(orgId);
+    const tz = await getOrgTimezone(orgId).catch(() => null);
+    if (!tz) {
+        return { error: "Could not load organization settings" };
+    }
     const startTime = formatInTz(new Date(shift.start_time), "HH:mm", tz);
     const endTime = formatInTz(new Date(shift.end_time), "HH:mm", tz);
+    const endDateStr = endTime <= startTime ? format(addDays(new Date(newDate), 1), "yyyy-MM-dd") : newDate;
 
     const { error } = await supabase
         .from("shifts")
         .update({
             start_time: buildTimestamp(newDate, startTime, tz),
-            end_time: buildTimestamp(newDate, endTime, tz),
+            end_time: buildTimestamp(endDateStr, endTime, tz),
         })
         .eq("id", shiftId)
         .eq("organization_id", orgId);
@@ -414,19 +448,24 @@ export async function swapShiftTimes(shiftId1: number, shiftId2: number) {
     const shift1 = shifts.find(s => s.id === shiftId1)!;
     const shift2 = shifts.find(s => s.id === shiftId2)!;
 
-    const tz = await getOrgTimezone(orgId);
+    const tz = await getOrgTimezone(orgId).catch(() => null);
+    if (!tz) {
+        return { error: "Could not load organization settings" };
+    }
     const date1 = formatInTz(new Date(shift1.start_time), "yyyy-MM-dd", tz);
     const date2 = formatInTz(new Date(shift2.start_time), "yyyy-MM-dd", tz);
     const start1 = formatInTz(new Date(shift1.start_time), "HH:mm", tz);
     const end1 = formatInTz(new Date(shift1.end_time), "HH:mm", tz);
     const start2 = formatInTz(new Date(shift2.start_time), "HH:mm", tz);
     const end2 = formatInTz(new Date(shift2.end_time), "HH:mm", tz);
+    const endDate1 = end2 <= start2 ? format(addDays(new Date(date1), 1), "yyyy-MM-dd") : date1;
+    const endDate2 = end1 <= start1 ? format(addDays(new Date(date2), 1), "yyyy-MM-dd") : date2;
 
     const { error: error1 } = await supabase
         .from("shifts")
         .update({
             start_time: buildTimestamp(date1, start2, tz),
-            end_time: buildTimestamp(date1, end2, tz),
+            end_time: buildTimestamp(endDate1, end2, tz),
         })
         .eq("id", shiftId1)
         .eq("organization_id", orgId);
@@ -435,7 +474,7 @@ export async function swapShiftTimes(shiftId1: number, shiftId2: number) {
         .from("shifts")
         .update({
             start_time: buildTimestamp(date2, start1, tz),
-            end_time: buildTimestamp(date2, end1, tz),
+            end_time: buildTimestamp(endDate2, end1, tz),
         })
         .eq("id", shiftId2)
         .eq("organization_id", orgId);
@@ -495,9 +534,27 @@ export async function createTimeOffRequest(data: z.infer<typeof timeOffSchema>) 
     const { error: roleError, userOrg } = await requireRole('manager');
     if (roleError || !userOrg) return { error: roleError || "Not authorized" };
     const orgId = userOrg.organization_id;
+
+    const result = timeOffSchema.safeParse(data);
+    if (!result.success) {
+        return { error: "Validation failed" };
+    }
+
     const supabase = await createSupabaseServerClient();
 
-    const { employee_id, date, reason } = data;
+    const { employee_id, date, reason } = result.data;
+
+    const { data: employee, error: employeeError } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("id", employee_id)
+        .eq("organization_id", orgId)
+        .maybeSingle();
+
+    if (employeeError || !employee) {
+        return { error: "Employee not found" };
+    }
+
     const { error } = await supabase.from("time_off_requests").insert({
         employee_id,
         organization_id: orgId,
@@ -535,20 +592,32 @@ export async function toggleHoliday(date: Date) {
     const supabase = await createSupabaseServerClient();
 
     const dateStr = format(date, "yyyy-MM-dd");
-    const { data } = await supabase
+    const { data, error: fetchError } = await supabase
         .from("holidays")
-        .select("*")
+        .select("date")
         .eq("date", dateStr)
         .eq("organization_id", orgId)
-        .single();
+        .limit(1)
+        .maybeSingle();
+
+    if (fetchError) {
+        return { error: "Failed to update holiday" };
+    }
 
     if (data) {
-        await supabase.from("holidays").delete().eq("date", dateStr).eq("organization_id", orgId);
+        const { error } = await supabase.from("holidays").delete().eq("date", dateStr).eq("organization_id", orgId);
+        if (error) {
+            return { error: "Failed to update holiday" };
+        }
     } else {
-        await supabase.from("holidays").insert({ date: dateStr, name: "Holiday", organization_id: orgId });
+        const { error } = await supabase.from("holidays").insert({ date: dateStr, name: "Holiday", organization_id: orgId });
+        if (error) {
+            return { error: "Failed to update holiday" };
+        }
     }
     updateTag(cacheTags.holidays(orgId));
     revalidatePath("/");
+    return { success: true };
 }
 
 type StatsResult = {
@@ -598,12 +667,13 @@ export async function getDetailedStatsByRange(
     const orgId = await getOrgId();
     const empIdNum = employeeId ? Number(employeeId) : undefined;
 
-    const stats = await callStatsRpc(orgId, startDate, endDate, empIdNum);
+    const [stats, shifts] = await Promise.all([
+        callStatsRpc(orgId, startDate, endDate, empIdNum),
+        empIdNum !== undefined
+            ? callBreakdownRpc(orgId, startDate, endDate, empIdNum)
+            : Promise.resolve<StatsBreakdown | undefined>(undefined),
+    ]);
     if (!stats) return null;
-
-    const shifts = empIdNum !== undefined
-        ? await callBreakdownRpc(orgId, startDate, endDate, empIdNum)
-        : undefined;
 
     return { ...stats, shifts };
 }
@@ -617,10 +687,10 @@ export async function getMonthShifts(date: Date) {
 
     const { data, error } = await supabase
         .from("shifts")
-        .select("*")
+        .select("id, employee_id, start_time, end_time")
         .eq("organization_id", orgId)
         .gte("start_time", start.toISOString())
-        .lte("end_time", end.toISOString());
+        .lte("start_time", end.toISOString());
 
     if (error) {
         return [];

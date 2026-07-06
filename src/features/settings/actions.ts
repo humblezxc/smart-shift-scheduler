@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient, requireOrganization, requireRole } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 export interface ShiftTemplate {
     id: string;
@@ -74,15 +75,34 @@ export async function updateOrganizationName(name: string) {
     return { success: true };
 }
 
+const updateSettingsSchema = z.object({
+    timezone: z.string().min(1).optional(),
+    currency: z.string().min(1).optional(),
+    week_starts_on: z.number().int().min(0).max(6).optional(),
+    shift_templates: z.array(z.object({
+        id: z.string(),
+        name: z.string(),
+        start_time: z.string(),
+        end_time: z.string(),
+        applicable_days: z.array(z.string()),
+    })).optional(),
+    custom_roles: z.array(z.string()).optional(),
+});
+
 export async function updateSettings(settings: Partial<Omit<OrganizationSettings, "organization_id">>) {
     const { error: roleError, userOrg } = await requireRole('admin');
     if (roleError || !userOrg) return { error: roleError || "Not authorized" };
+
+    const result = updateSettingsSchema.safeParse(settings);
+    if (!result.success) {
+        return { error: "Validation failed" };
+    }
 
     const supabase = await createSupabaseServerClient();
 
     const { error } = await supabase
         .from("organization_settings")
-        .update(settings)
+        .update(result.data)
         .eq("organization_id", userOrg.organization_id);
 
     if (error) {

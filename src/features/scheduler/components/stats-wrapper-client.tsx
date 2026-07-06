@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -42,7 +42,13 @@ export function StatsWrapperClient({ monthStats: initialMonthStats, allTimeStats
     const goToPrevMonth = () => setSelectedMonth(prev => subMonths(prev, 1));
     const goToNextMonth = () => setSelectedMonth(prev => addMonths(prev, 1));
 
+    const isFirstRun = useRef(true);
+
     useEffect(() => {
+        if (isFirstRun.current) {
+            isFirstRun.current = false;
+            return;
+        }
         async function fetchMonthStats() {
             setIsLoading(true);
             const stats = await getDetailedStats('month', selectedMonth);
@@ -53,8 +59,9 @@ export function StatsWrapperClient({ monthStats: initialMonthStats, allTimeStats
     }, [selectedMonth]);
 
     useEffect(() => {
+        if (activeTab !== "range" || employees.length > 0) return;
         getEmployees().then(setEmployees);
-    }, []);
+    }, [activeTab, employees.length]);
 
     useEffect(() => {
         if (activeTab !== "range" || !fromDate || !toDate) return;

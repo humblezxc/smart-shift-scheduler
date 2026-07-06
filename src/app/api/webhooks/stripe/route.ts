@@ -2,15 +2,19 @@ import { stripe } from "@/lib/stripe";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export async function POST(request: NextRequest) {
     if (!stripe) {
         return NextResponse.json({ error: "Stripe not configured" }, { status: 500 });
     }
+
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        return NextResponse.json({ error: "Supabase service role not configured" }, { status: 500 });
+    }
+
+    const supabaseAdmin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
 
     const body = await request.text();
     const signature = request.headers.get("stripe-signature");
@@ -31,14 +35,17 @@ export async function POST(request: NextRequest) {
             const session = event.data.object;
             const orgId = session.metadata?.organization_id;
             if (orgId) {
-                await supabaseAdmin
+                const { error, count } = await supabaseAdmin
                     .from("organizations")
                     .update({
                         subscription_tier: "pro",
                         stripe_customer_id: session.customer as string,
                         subscription_status: "active",
-                    })
+                    }, { count: "exact" })
                     .eq("id", orgId);
+                if (error || !count) {
+                    return NextResponse.json({ error: "Failed to activate subscription" }, { status: 500 });
+                }
             }
             break;
         }
@@ -50,13 +57,16 @@ export async function POST(request: NextRequest) {
 
             const tier = status === "active" ? "pro" : "free";
 
-            await supabaseAdmin
+            const { error, count } = await supabaseAdmin
                 .from("organizations")
                 .update({
                     subscription_tier: tier,
                     subscription_status: status,
-                })
+                }, { count: "exact" })
                 .eq("stripe_customer_id", customerId);
+            if (error || !count) {
+                return NextResponse.json({ error: "Failed to update subscription" }, { status: 500 });
+            }
             break;
         }
 
@@ -64,13 +74,16 @@ export async function POST(request: NextRequest) {
             const subscription = event.data.object;
             const customerId = subscription.customer as string;
 
-            await supabaseAdmin
+            const { error, count } = await supabaseAdmin
                 .from("organizations")
                 .update({
                     subscription_tier: "free",
                     subscription_status: "canceled",
-                })
+                }, { count: "exact" })
                 .eq("stripe_customer_id", customerId);
+            if (error || !count) {
+                return NextResponse.json({ error: "Failed to cancel subscription" }, { status: 500 });
+            }
             break;
         }
     }

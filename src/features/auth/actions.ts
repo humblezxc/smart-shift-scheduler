@@ -16,7 +16,8 @@ const signupSchema = loginSchema.extend({
 export async function login(formData: FormData) {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
-    const redirectTo = formData.get("redirect") as string || "/";
+    const redirectParam = formData.get("redirect") as string || "/";
+    const redirectTo = redirectParam.startsWith("/") && !redirectParam.startsWith("//") ? redirectParam : "/";
 
     const result = loginSchema.safeParse({ email, password });
     if (!result.success) {
