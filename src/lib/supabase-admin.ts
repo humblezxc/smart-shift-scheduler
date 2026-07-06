@@ -23,4 +23,5 @@ export const cacheTags = {
     employees: (orgId: string) => `employees:${orgId}`,
     holidays: (orgId: string) => `holidays:${orgId}`,
     shifts: (orgId: string) => `shifts:${orgId}`,
+    settings: (orgId: string) => `settings:${orgId}`,
 };

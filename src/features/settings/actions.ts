@@ -1,7 +1,8 @@
 "use server";
 
 import { createSupabaseServerClient, requireOrganization, requireRole } from "@/lib/supabase-server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { cacheTags } from "@/lib/supabase-admin";
 import { z } from "zod";
 
 export interface ShiftTemplate {
@@ -109,6 +110,7 @@ export async function updateSettings(settings: Partial<Omit<OrganizationSettings
         return { error: "Failed to update settings" };
     }
 
+    updateTag(cacheTags.settings(userOrg.organization_id));
     revalidatePath("/settings");
     revalidatePath("/");
     return { success: true };

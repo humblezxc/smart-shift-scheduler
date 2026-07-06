@@ -14,7 +14,9 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import { useLanguage } from "@/context/language-context";
+import { Language } from "@/lib/translations";
 import { rotateEmployeeShareLink, revokeEmployeeShareLinks } from "../actions";
 
 interface Props {
@@ -24,26 +26,29 @@ interface Props {
     onOpenChange: (open: boolean) => void;
 }
 
+const LINK_LANGUAGES: Language[] = ["en", "pl", "uk"];
+
 export function ShareLinkDialog({ employeeId, employeeName, open, onOpenChange }: Props) {
     const { t, language } = useLanguage();
     const [token, setToken] = useState<string | null>(null);
     const [expiresAt, setExpiresAt] = useState<string | null>(null);
+    const [linkLang, setLinkLang] = useState<Language>(language);
     const [loading, setLoading] = useState<"idle" | "rotating" | "revoking">("idle");
-    const [copied, setCopied] = useState(false);
+    const [copiedKey, setCopiedKey] = useState<"page" | "feed" | null>(null);
 
     const title = t("share.title") !== "share.title" ? t("share.title") : "Share Link";
     const generateLabel = t("share.generate") !== "share.generate" ? t("share.generate") : "Generate new link";
     const rotateLabel = t("share.rotate") !== "share.rotate" ? t("share.rotate") : "Rotate (invalidate old)";
     const revokeLabel = t("share.revoke") !== "share.revoke" ? t("share.revoke") : "Revoke all active links";
-    const copyLabel = t("share.copy") !== "share.copy" ? t("share.copy") : "Copy link";
-    const copiedLabel = t("share.copied") !== "share.copied" ? t("share.copied") : "Copied";
     const warningLabel = t("share.warning") !== "share.warning"
         ? t("share.warning")
         : "Copy this link now — it will not be shown again. Rotating invalidates the old link so anyone still holding it will lose access.";
     const revokedLabel = t("share.revoked") !== "share.revoked" ? t("share.revoked") : "All active links revoked";
     const rotatedLabel = t("share.rotated") !== "share.rotated" ? t("share.rotated") : "New link generated";
 
-    const url = token ? `${typeof window !== "undefined" ? window.location.origin : ""}/s/${token}?lang=${language}` : null;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const pageUrl = token ? `${origin}/s/${token}?lang=${linkLang}` : null;
+    const feedUrl = token ? `${origin}/s/${token}/calendar.ics?lang=${linkLang}` : null;
 
     async function onRotate() {
         setLoading("rotating");
@@ -73,12 +78,12 @@ export function ShareLinkDialog({ employeeId, employeeName, open, onOpenChange }
         toast.success(revokedLabel);
     }
 
-    async function onCopy() {
+    async function onCopy(key: "page" | "feed", url: string | null) {
         if (!url) return;
         await navigator.clipboard.writeText(url);
-        setCopied(true);
-        toast.success(copiedLabel);
-        setTimeout(() => setCopied(false), 2000);
+        setCopiedKey(key);
+        toast.success(t("share.copied") !== "share.copied" ? t("share.copied") : "Copied");
+        setTimeout(() => setCopiedKey(null), 2000);
     }
 
     return (
@@ -88,7 +93,7 @@ export function ShareLinkDialog({ employeeId, employeeName, open, onOpenChange }
                 if (!next) {
                     setToken(null);
                     setExpiresAt(null);
-                    setCopied(false);
+                    setCopiedKey(null);
                 }
                 onOpenChange(next);
             }}
@@ -104,6 +109,28 @@ export function ShareLinkDialog({ employeeId, employeeName, open, onOpenChange }
                             : "Personal schedule link for this employee. Tokens are stored hashed, expire automatically, and can be rotated or revoked at any time."}
                     </DialogDescription>
                 </DialogHeader>
+
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-muted-foreground">
+                        {t("share.language") !== "share.language" ? t("share.language") : "Link language"}
+                    </span>
+                    <div className="flex gap-1">
+                        {LINK_LANGUAGES.map((lng) => (
+                            <button
+                                key={lng}
+                                onClick={() => setLinkLang(lng)}
+                                className={cn(
+                                    "px-2 py-1 rounded text-xs font-semibold uppercase border transition",
+                                    linkLang === lng
+                                        ? "bg-foreground text-background border-foreground"
+                                        : "bg-card text-muted-foreground hover:bg-muted border-border"
+                                )}
+                            >
+                                {lng}
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
                 {!token ? (
                     <div className="flex flex-col gap-3 py-2">
@@ -124,16 +151,38 @@ export function ShareLinkDialog({ employeeId, employeeName, open, onOpenChange }
                             <span className="text-amber-900 dark:text-amber-200">{warningLabel}</span>
                         </div>
 
-                        <div className="flex gap-2">
-                            <input
-                                readOnly
-                                value={url ?? ""}
-                                className="flex-1 font-mono text-xs px-3 py-2 rounded-md border bg-muted/50 select-all"
-                                onFocus={(e) => e.currentTarget.select()}
-                            />
-                            <Button size="sm" variant="outline" onClick={onCopy}>
-                                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                            </Button>
+                        <div className="space-y-1">
+                            <span className="text-xs font-medium text-muted-foreground">
+                                {t("share.page_link") !== "share.page_link" ? t("share.page_link") : "Schedule page"}
+                            </span>
+                            <div className="flex gap-2">
+                                <input
+                                    readOnly
+                                    value={pageUrl ?? ""}
+                                    className="flex-1 font-mono text-xs px-3 py-2 rounded-md border bg-muted/50 select-all"
+                                    onFocus={(e) => e.currentTarget.select()}
+                                />
+                                <Button size="sm" variant="outline" onClick={() => onCopy("page", pageUrl)}>
+                                    {copiedKey === "page" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            <span className="text-xs font-medium text-muted-foreground">
+                                {t("share.calendar_link") !== "share.calendar_link" ? t("share.calendar_link") : "Calendar feed"}
+                            </span>
+                            <div className="flex gap-2">
+                                <input
+                                    readOnly
+                                    value={feedUrl ?? ""}
+                                    className="flex-1 font-mono text-xs px-3 py-2 rounded-md border bg-muted/50 select-all"
+                                    onFocus={(e) => e.currentTarget.select()}
+                                />
+                                <Button size="sm" variant="outline" onClick={() => onCopy("feed", feedUrl)}>
+                                    {copiedKey === "feed" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                </Button>
+                            </div>
                         </div>
 
                         {expiresAt && (

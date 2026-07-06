@@ -47,6 +47,26 @@ export function fetchArchivedEmployeesForOrg(orgId: string) {
     )();
 }
 
+export function fetchOrgSettingsForOrg(orgId: string) {
+    const tag = cacheTags.settings(orgId);
+    return unstable_cache(
+        async () => {
+            const supabase = getAdminClient();
+            const { data, error } = await supabase
+                .from("organization_settings")
+                .select("timezone, currency, week_starts_on, onboarding_completed")
+                .eq("organization_id", orgId)
+                .maybeSingle();
+            if (error) {
+                throw new Error("Failed to load organization settings");
+            }
+            return data;
+        },
+        [`settings`, orgId],
+        { tags: [tag], revalidate: CACHE_TTL_SECONDS }
+    )();
+}
+
 export function fetchHolidaysForRange(orgId: string, startStr: string, endStr: string) {
     const tag = cacheTags.holidays(orgId);
     return unstable_cache(

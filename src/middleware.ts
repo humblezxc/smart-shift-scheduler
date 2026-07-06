@@ -56,9 +56,9 @@ export async function middleware(req: NextRequest) {
         }
     );
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: claimsData } = await supabase.auth.getClaims();
 
-    if (user) {
+    if (claimsData?.claims) {
         return response;
     }
 
