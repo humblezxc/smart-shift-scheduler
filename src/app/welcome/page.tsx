@@ -167,7 +167,7 @@ export default function WelcomePage() {
                             price="$0"
                             description={t("landing.freeDesc") || "For small teams getting started"}
                             features={[
-                                t("landing.freeFeature1") || "Up to 5 employees",
+                                t("landing.freeFeature1") || "Up to 15 employees",
                                 t("landing.freeFeature2") || "AI schedule generation",
                                 t("landing.freeFeature3") || "PDF exports",
                             ]}

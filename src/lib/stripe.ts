@@ -7,7 +7,7 @@ export const stripe = process.env.STRIPE_SECRET_KEY
 export type SubscriptionTier = "free" | "pro" | "business";
 
 export const TIER_LIMITS: Record<SubscriptionTier, { maxEmployees: number }> = {
-    free: { maxEmployees: 5 },
+    free: { maxEmployees: 15 },
     pro: { maxEmployees: 999 },
     business: { maxEmployees: 999 },
 };
