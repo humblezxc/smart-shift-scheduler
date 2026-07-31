@@ -23,6 +23,7 @@ import { useShiftDrag } from "../hooks/use-shift-drag";
 import { Shift, Employee } from "@/types";
 import { toggleHoliday } from "../actions";
 import { cn } from "@/lib/utils";
+import { resolveEmployeeColor } from "@/lib/employee-colors";
 import { useLanguage } from "@/context/language-context";
 
 const dropAnimation: DropAnimation = {
@@ -81,6 +82,11 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays, c
         return map;
     }, [shifts]);
 
+    const scheduledEmployees = useMemo(() => {
+        const ids = new Set(shifts.map((shift) => shift.employee_id));
+        return employees.filter((employee) => ids.has(employee.id));
+    }, [shifts, employees]);
+
     const handleDayClick = async (date: Date) => {
         if (!canManage) return;
         await toggleHoliday(date);
@@ -97,12 +103,16 @@ export function ScheduleGridClient({ initialShifts, employees, days, holidays, c
 
     return (
         <div className="border rounded-lg bg-card overflow-hidden">
-            <div className="flex gap-4 px-4 py-2 text-xs text-muted-foreground bg-muted/50 border-b overflow-x-auto">
-                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-purple-200 dark:bg-purple-800"></div> {t("roles.owner")}</div>
-                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-amber-200 dark:bg-amber-800"></div> {t("roles.manager")}</div>
-                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-blue-200 dark:bg-blue-800"></div> {t("roles.cashier")}</div>
-                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-emerald-200 dark:bg-emerald-800"></div> {t("roles.student")}</div>
-            </div>
+            {scheduledEmployees.length > 0 && (
+                <div className="flex gap-4 px-4 py-2 text-xs text-muted-foreground bg-muted/50 border-b overflow-x-auto">
+                    {scheduledEmployees.map((employee) => (
+                        <div key={employee.id} className="flex items-center gap-1 whitespace-nowrap">
+                            <div className={cn("w-3 h-3 rounded-full shrink-0", resolveEmployeeColor(employee).dot)} />
+                            {employee.first_name} {employee.last_name?.charAt(0)}.
+                        </div>
+                    ))}
+                </div>
+            )}
 
             <div className="grid grid-cols-7 border-b bg-muted">
                 {days.map((day) => {

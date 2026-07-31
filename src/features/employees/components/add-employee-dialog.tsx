@@ -34,8 +34,15 @@ import {
 import { employeeSchema, EmployeeFormValues } from "../schemas";
 import { createEmployee } from "../actions";
 import { useLanguage } from "@/context/language-context";
+import { Employee } from "@/types";
+import { nextAvailableColor } from "@/lib/employee-colors";
+import { ColorSwatchPicker } from "./color-swatch-picker";
 
-export function AddEmployeeDialog() {
+interface AddEmployeeDialogProps {
+    roster?: Employee[];
+}
+
+export function AddEmployeeDialog({ roster = [] }: AddEmployeeDialogProps) {
     const [open, setOpen] = useState(false);
     const { t } = useLanguage();
 
@@ -47,6 +54,7 @@ export function AddEmployeeDialog() {
             role: "cashier",
             max_hours_per_week: 40,
             hourly_rate: 28.1,
+            color: nextAvailableColor(roster.map((member) => member.color)),
         },
     });
 
@@ -58,7 +66,14 @@ export function AddEmployeeDialog() {
         } else {
             toast.success("Employee added successfully!");
             setOpen(false);
-            form.reset();
+            form.reset({
+                first_name: "",
+                last_name: "",
+                role: "cashier",
+                max_hours_per_week: 40,
+                hourly_rate: 28.1,
+                color: nextAvailableColor([...roster.map((member) => member.color), values.color]),
+            });
         }
     }
 
@@ -124,6 +139,24 @@ export function AddEmployeeDialog() {
                                             <SelectItem value="owner">{t("roles.owner")}</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="color"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t("forms.color") !== "forms.color" ? t("forms.color") : "Color"}</FormLabel>
+                                    <FormControl>
+                                        <ColorSwatchPicker
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            roster={roster}
+                                        />
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}

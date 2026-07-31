@@ -6,6 +6,7 @@ import { employeeSchema, EmployeeFormValues } from "./schemas";
 import { revalidatePath, updateTag } from "next/cache";
 import { canAddEmployee, SubscriptionTier } from "@/lib/stripe";
 import { cacheTags } from "@/lib/supabase-admin";
+import { nextAvailableColor } from "@/lib/employee-colors";
 import { fetchEmployeesForOrg, fetchArchivedEmployeesForOrg } from "@/lib/cached-queries";
 
 async function getOrgId() {
@@ -40,7 +41,7 @@ export async function createEmployee(data: EmployeeFormValues) {
 
     const supabase = await createSupabaseServerClient();
 
-    const [{ data: org }, { count }] = await Promise.all([
+    const [{ data: org }, { count }, { data: existing }] = await Promise.all([
         supabase
             .from("organizations")
             .select("subscription_tier")
@@ -51,6 +52,10 @@ export async function createEmployee(data: EmployeeFormValues) {
             .select("*", { count: "exact", head: true })
             .eq("organization_id", orgId)
             .is("archived_at", null),
+        supabase
+            .from("employees")
+            .select("color")
+            .eq("organization_id", orgId),
     ]);
 
     const tier = (org?.subscription_tier || "free") as SubscriptionTier;
@@ -61,6 +66,7 @@ export async function createEmployee(data: EmployeeFormValues) {
 
     const { error } = await supabase.from("employees").insert({
         ...result.data,
+        color: result.data.color ?? nextAvailableColor((existing || []).map((row) => row.color)),
         organization_id: orgId,
     });
 

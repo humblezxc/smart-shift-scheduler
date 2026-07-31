@@ -36,7 +36,7 @@ export async function getShiftsForWeek(startOfWeek: Date, endOfWeek: Date) {
         .from("shifts")
         .select(`
       id, employee_id, start_time, end_time, hourly_rate,
-      employee:employees ( first_name, last_name, role )
+      employee:employees ( first_name, last_name, role, color )
     `)
         .eq("organization_id", orgId)
         .gte("start_time", startOfDay(startOfWeek).toISOString())

@@ -16,6 +16,7 @@ import { Link2, Pencil } from "lucide-react";
 import { useLanguage } from "@/context/language-context";
 import { EditEmployeeDialog } from "./edit-employee-dialog";
 import { ShareLinkDialog } from "./share-link-dialog";
+import { resolveEmployeeColor } from "@/lib/employee-colors";
 
 interface EmployeeListProps {
     employees: Employee[];
@@ -48,7 +49,12 @@ export function EmployeeList({ employees, canManage = false }: EmployeeListProps
                     {employees.map((employee) => (
                         <TableRow key={employee.id}>
                             <TableCell className="font-medium">
-                                {employee.first_name} {employee.last_name}
+                                <span className="flex items-center gap-2">
+                                    <span
+                                        className={`h-2.5 w-2.5 rounded-full shrink-0 ${resolveEmployeeColor(employee).dot}`}
+                                    />
+                                    {employee.first_name} {employee.last_name}
+                                </span>
                             </TableCell>
                             <TableCell>
                                 <Badge variant="outline" className={`border-0 ${roleBadgeColors[employee.role] || "bg-muted text-muted-foreground"}`}>
@@ -87,6 +93,7 @@ export function EmployeeList({ employees, canManage = false }: EmployeeListProps
                     employee={editingEmployee}
                     open={!!editingEmployee}
                     onOpenChange={(open) => !open && setEditingEmployee(null)}
+                    roster={employees}
                 />
             )}
 

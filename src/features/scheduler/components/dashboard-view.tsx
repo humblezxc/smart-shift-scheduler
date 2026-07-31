@@ -50,7 +50,7 @@ export function DashboardView({stats, currentDate, employees, timeOffs, shifts, 
                 <div className="hidden md:flex gap-2 sm:gap-4 items-center">
                     <ThemeToggle />
                     <LanguageSwitcher />
-                    {canManage && <AddEmployeeDialog />}
+                    {canManage && <AddEmployeeDialog roster={employees} />}
                     <ExportMenu currentDate={currentDate} employees={employees} />
                     {canManage && <GenerateButton />}
                     <SettingsButton />

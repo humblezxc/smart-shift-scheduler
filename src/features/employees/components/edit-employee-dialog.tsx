@@ -46,14 +46,16 @@ import { employeeSchema, EmployeeFormValues } from "../schemas";
 import { updateEmployee, deleteEmployee } from "../actions";
 import { useLanguage } from "@/context/language-context";
 import { Employee } from "@/types";
+import { ColorSwatchPicker } from "./color-swatch-picker";
 
 interface EditEmployeeDialogProps {
     employee: Employee;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    roster?: Employee[];
 }
 
-export function EditEmployeeDialog({ employee, open, onOpenChange }: EditEmployeeDialogProps) {
+export function EditEmployeeDialog({ employee, open, onOpenChange, roster }: EditEmployeeDialogProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const { t } = useLanguage();
@@ -66,6 +68,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange }: EditEmploye
             role: employee.role as any,
             max_hours_per_week: employee.max_hours_per_week,
             hourly_rate: employee.hourly_rate,
+            color: employee.color ?? null,
         },
     });
 
@@ -77,6 +80,7 @@ export function EditEmployeeDialog({ employee, open, onOpenChange }: EditEmploye
                 role: employee.role as any,
                 max_hours_per_week: employee.max_hours_per_week,
                 hourly_rate: employee.hourly_rate,
+                color: employee.color ?? null,
             });
         }
     }, [employee, open, form]);
@@ -164,6 +168,25 @@ export function EditEmployeeDialog({ employee, open, onOpenChange }: EditEmploye
                                             <SelectItem value="owner">{t("roles.owner")}</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="color"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t("forms.color") !== "forms.color" ? t("forms.color") : "Color"}</FormLabel>
+                                    <FormControl>
+                                        <ColorSwatchPicker
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            roster={roster}
+                                            currentEmployeeId={employee.id}
+                                        />
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}

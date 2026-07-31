@@ -48,7 +48,7 @@ export function MobileNav({ currentDate, employees, canManage = false }: MobileN
                         <div className="grid gap-2">
                             <label className="text-sm font-medium text-muted-foreground">Actions</label>
                             <div className="flex flex-col gap-2 [&>button]:w-full [&>div]:w-full [&>form]:w-full [&>form>button]:w-full">
-                                {canManage && <AddEmployeeDialog />}
+                                {canManage && <AddEmployeeDialog roster={employees} />}
                                 <ExportMenu currentDate={currentDate} employees={employees} />
                                 {canManage && <GenerateButton />}
                                 <SettingsButton />
