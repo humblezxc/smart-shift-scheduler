@@ -1,3 +1,5 @@
+import { EmployeeColor } from "@/lib/employee-colors";
+
 export interface Employee {
     id: number;
     first_name: string;
@@ -5,6 +7,7 @@ export interface Employee {
     role: 'manager' | 'cashier' | 'student' | 'owner';
     max_hours_per_week: number;
     hourly_rate: number;
+    color?: EmployeeColor | null;
     archived_at?: string | null;
     archived_by?: string | null;
 }
